@@ -1,0 +1,93 @@
+2025-02-19 21:20:08,487 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 21:20:09,399 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/currencies HTTP/1.1" 200 None
+2025-02-19 21:22:12,544 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 21:22:15,814 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/currencies HTTP/1.1" 200 None
+2025-02-19 23:23:33,771 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:23:34,887 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 200 None
+2025-02-19 23:23:35,891 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:23:36,864 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 200 None
+2025-02-19 23:23:37,868 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:23:38,556 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:23:38,557 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u0412\u044b\u0431\u0440\u0430\u043d\u043d\u0430\u044f \u0432\u0430\u043b\u044e\u0442\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b!"}
+2025-02-19 23:25:07,970 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:25:08,914 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 200 None
+2025-02-19 23:25:09,921 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:25:10,811 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 200 None
+2025-02-19 23:25:11,817 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:25:12,503 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:25:12,504 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u0412\u044b\u0431\u0440\u0430\u043d\u043d\u0430\u044f \u0432\u0430\u043b\u044e\u0442\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b!"}
+2025-02-19 23:25:13,511 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:25:14,235 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:25:14,241 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b 1000RUB, \u043c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f 100000RUB"}
+2025-02-19 23:25:15,252 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:25:16,752 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:25:16,753 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u0412\u044b\u0431\u0440\u0430\u043d\u043d\u0430\u044f \u0432\u0430\u043b\u044e\u0442\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b!"}
+2025-02-19 23:25:17,760 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:25:18,425 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:25:18,443 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b 1000RUB, \u043c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f 100000RUB"}
+2025-02-19 23:25:19,499 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:25:26,096 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:25:26,098 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u0412\u044b\u0431\u0440\u0430\u043d\u043d\u0430\u044f \u0432\u0430\u043b\u044e\u0442\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b!"}
+2025-02-19 23:25:27,102 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:25:27,778 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:25:27,779 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b 1000RUB, \u043c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f 100000RUB"}
+2025-02-19 23:25:28,782 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:25:39,226 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:25:39,228 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u0412\u044b\u0431\u0440\u0430\u043d\u043d\u0430\u044f \u0432\u0430\u043b\u044e\u0442\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b!"}
+2025-02-19 23:25:40,231 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:25:40,917 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:25:40,918 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u0412\u044b\u0431\u0440\u0430\u043d\u043d\u0430\u044f \u0432\u0430\u043b\u044e\u0442\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b!"}
+2025-02-19 23:25:41,922 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:25:42,961 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:25:42,962 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u0412\u044b\u0431\u0440\u0430\u043d\u043d\u0430\u044f \u0432\u0430\u043b\u044e\u0442\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b!"}
+2025-02-19 23:25:43,965 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:25:44,659 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:25:44,661 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b 1000RUB, \u043c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f 100000RUB"}
+2025-02-19 23:25:45,664 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:25:46,334 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:25:46,336 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b 1000RUB, \u043c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f 100000RUB"}
+2025-02-19 23:25:47,338 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:25:49,130 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:25:49,131 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b 10USDT, \u043c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f 100000USDT"}
+2025-02-19 23:25:50,135 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:25:50,832 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:25:50,833 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b 2.5USDT, \u043c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f 100000USDT"}
+2025-02-19 23:25:51,838 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:25:53,752 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:25:53,754 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u0412\u044b\u0431\u0440\u0430\u043d\u043d\u0430\u044f \u0432\u0430\u043b\u044e\u0442\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b!"}
+2025-02-19 23:25:54,759 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:26:00,134 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:26:00,135 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b 0.02BNB, \u043c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f 10000BNB"}
+2025-02-19 23:26:01,145 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:26:02,477 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:26:02,479 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u0412\u044b\u0431\u0440\u0430\u043d\u043d\u0430\u044f \u0432\u0430\u043b\u044e\u0442\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b!"}
+2025-02-19 23:26:03,495 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:26:04,200 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:26:04,203 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u0412\u044b\u0431\u0440\u0430\u043d\u043d\u0430\u044f \u0432\u0430\u043b\u044e\u0442\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b!"}
+2025-02-19 23:26:05,208 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:26:06,864 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:26:06,866 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u0412\u044b\u0431\u0440\u0430\u043d\u043d\u0430\u044f \u0432\u0430\u043b\u044e\u0442\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b!"}
+2025-02-19 23:26:07,870 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:26:08,579 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:26:08,583 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u0412\u044b\u0431\u0440\u0430\u043d\u043d\u0430\u044f \u0432\u0430\u043b\u044e\u0442\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b!"}
+2025-02-19 23:26:09,640 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:26:10,660 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:26:10,662 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u0412\u044b\u0431\u0440\u0430\u043d\u043d\u0430\u044f \u0432\u0430\u043b\u044e\u0442\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b!"}
+2025-02-19 23:26:11,665 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:26:12,323 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:26:12,324 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u0412\u044b\u0431\u0440\u0430\u043d\u043d\u0430\u044f \u0432\u0430\u043b\u044e\u0442\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b!"}
+2025-02-19 23:26:13,326 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:26:14,257 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 200 None
+2025-02-19 23:26:15,260 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:26:16,278 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:26:16,280 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b 0.01LTC, \u043c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f 1000LTC"}
+2025-02-19 23:26:17,283 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:26:23,637 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 200 None
+2025-02-19 23:26:24,645 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:26:25,507 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 200 None
+2025-02-19 23:26:26,520 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:26:27,194 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:26:27,196 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u0412\u044b\u0431\u0440\u0430\u043d\u043d\u0430\u044f \u0432\u0430\u043b\u044e\u0442\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b!"}
+2025-02-19 23:26:28,200 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.fk.life:443
+2025-02-19 23:26:28,899 - urllib3.connectionpool - DEBUG - https://api.fk.life:443 "POST /v1/orders/create HTTP/1.1" 400 None
+2025-02-19 23:26:28,900 - root - ERROR - Ошибка при выполнении запроса: 400, ответ: {"error":"\u0412\u044b\u0431\u0440\u0430\u043d\u043d\u0430\u044f \u0432\u0430\u043b\u044e\u0442\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u044b!"}
