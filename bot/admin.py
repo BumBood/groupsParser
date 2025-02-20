@@ -15,12 +15,16 @@ from db.database import Database
 from aiogram import Bot
 from client.session_manager import SessionManager
 import logging
+from aiogram_album import AlbumMessage
+from aiogram_album.ttl_cache_middleware import TTLCacheAlbumMiddleware
 
 logger = logging.getLogger(__name__)
 
 router = Router(name="admin")
 db = Database()
 
+# Добавляем middleware для обработки альбомов
+TTLCacheAlbumMiddleware(router=router)
 
 class AdminStates(StatesGroup):
     waiting_for_parameter = State()
@@ -30,6 +34,7 @@ class AdminStates(StatesGroup):
     waiting_for_admin_id = State()
     waiting_for_balance_edit = State()
     waiting_for_archive = State()
+    waiting_for_broadcast = State()
 
 
 @router.message(Command("admin"))
@@ -66,6 +71,11 @@ async def admin_menu(message: types.Message):
                 [
                     types.InlineKeyboardButton(
                         text="🔄 Перезагрузить сервер", callback_data="reboot_server"
+                    )
+                ],
+                [
+                    types.InlineKeyboardButton(
+                        text="📨 Рассылка", callback_data="broadcast"
                     )
                 ],
             ]
@@ -107,6 +117,11 @@ async def back_to_admin(callback: types.CallbackQuery):
                 [
                     types.InlineKeyboardButton(
                         text="🔄 Перезагрузить сервер", callback_data="reboot_server"
+                    )
+                ],
+                [
+                    types.InlineKeyboardButton(
+                        text="📨 Рассылка", callback_data="broadcast"
                     )
                 ],
             ]
@@ -514,6 +529,133 @@ async def reboot_server(callback: types.CallbackQuery, state: FSMContext):
     # Перезагружаем сервер
     os.system("sudo /sbin/reboot")  # Для Linux
     # Альтернатива для Windows: os.system("shutdown /r /t 1")
+
+
+@router.callback_query(F.data == "broadcast")
+async def request_broadcast_message(callback: types.CallbackQuery, state: FSMContext):
+    if not db.get_user(callback.from_user.id).is_admin:
+        logger.warning(f"Попытка несанкционированного доступа к рассылке от пользователя {callback.from_user.id}")
+        return
+
+    logger.info(f"Администратор {callback.from_user.id} запросил создание рассылки")
+    await state.set_state(AdminStates.waiting_for_broadcast)
+    await callback.message.answer(
+        "📨 Отправьте сообщение для рассылки всем пользователям.\n"
+        "Поддерживаются все типы сообщений (текст, фото, видео и т.д.)",
+        reply_markup=types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text="◀️ Назад", callback_data="back_to_admin"
+                    )
+                ]
+            ]
+        ),
+    )
+
+
+@router.message(AdminStates.waiting_for_broadcast, F.media_group_id)
+async def process_broadcast_album(message: AlbumMessage, state: FSMContext):
+    if not db.get_user(message.from_user.id).is_admin:
+        logger.warning(f"Попытка несанкционированной рассылки от пользователя {message.from_user.id}")
+        return
+
+    logger.info(f"Начало рассылки альбома от администратора {message.from_user.id}")
+    
+    # Получаем всех пользователей из базы
+    users = db.get_all_users()
+    total_users = len(users)
+        
+    await message[0].answer(f"⏳ Начинаю рассылку альбома {total_users} пользователям...")
+    
+    success_count = 0
+    error_count = 0
+
+    media_group = [msg.as_input_media() for msg in message]
+
+    for user in users:
+        try:
+            # Отправляем альбом каждому пользователю
+            await message[0].bot.send_media_group(
+                chat_id=user.user_id,
+                media=media_group
+            )
+            success_count += 1
+            logger.debug(f"Альбом успешно отправлен пользователю {user.user_id}")
+        except Exception as e:
+            error_count += 1
+            logger.error(f"Ошибка отправки альбома пользователю {user.user_id}: {e}")
+        
+    logger.info(f"Рассылка альбома завершена. Успешно: {success_count}, ошибок: {error_count}")
+    
+    await message[0].answer(
+        f"✅ Рассылка альбома завершена\n"
+        f"📊 Статистика:\n"
+        f"• Всего пользователей: {total_users}\n"
+        f"• Успешно отправлено: {success_count}\n"
+        f"• Ошибок: {error_count}",
+        reply_markup=types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text="◀️ Назад", callback_data="back_to_admin"
+                    )
+                ]
+            ]
+        ),
+    )
+    
+    await state.clear()
+
+
+@router.message(AdminStates.waiting_for_broadcast)
+async def process_broadcast(message: types.Message, state: FSMContext):
+    """Обработка одиночных сообщений для рассылки"""
+    if not db.get_user(message.from_user.id).is_admin:
+        logger.warning(f"Попытка несанкционированной рассылки от пользователя {message.from_user.id}")
+        return
+
+    logger.info(f"Начало рассылки от администратора {message.from_user.id}")
+    
+    # Получаем всех пользователей из базы
+    users = db.get_all_users()
+    total_users = len(users)
+        
+    await message.answer(f"⏳ Начинаю рассылку {total_users} пользователям...")
+    
+    success_count = 0
+    error_count = 0
+
+    for user in users:
+        try:
+            # Копируем исходное сообщение каждому пользователю
+            await message.copy_to(user.user_id)
+            success_count += 1
+            logger.debug(f"Сообщение успешно отправлено пользователю {user.user_id}")
+        except Exception as e:
+            error_count += 1
+            logger.error(f"Ошибка отправки сообщения пользователю {user.user_id}: {e}")
+        
+    logger.info(f"Рассылка завершена. Успешно: {success_count}, ошибок: {error_count}")
+    
+    await message.answer(
+        f"✅ Рассылка завершена\n"
+        f"📊 Статистика:\n"
+        f"• Всего пользователей: {total_users}\n"
+        f"• Успешно отправлено: {success_count}\n"
+        f"• Ошибок: {error_count}",
+        reply_markup=types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text="◀️ Назад", callback_data="back_to_admin"
+                    )
+                ]
+            ]
+        ),
+    )
+    
+    await state.clear()
 
 
 async def validate_sessions(sessions_dir: str) -> tuple[list, list]:
