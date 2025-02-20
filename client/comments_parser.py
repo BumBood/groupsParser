@@ -122,6 +122,10 @@ class CommentParser:
 
                     # Подгоняем ширину каждой колонки под максимальную длину содержимого
                     for idx, col in enumerate(df.columns):
+                        # Сортируем пользователей по последней активности если это лист "Пользователи"
+                        if sheet_name == "Пользователи":
+                            df = df.sort_values(by="Последняя активность", ascending=False)
+                            
                         # Получаем максимальную длину в колонке
                         max_length = max(
                             df[col].astype(str).apply(len).max(), len(str(col))

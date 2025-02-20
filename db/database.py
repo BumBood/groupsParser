@@ -53,6 +53,11 @@ class Database:
             is_new = True
         return user, is_new
 
+    def get_all_users(self) -> list[User]:
+        """Получает всех пользователей"""
+        with self.get_session() as session:
+            return session.query(User).all()
+    
     def update_balance(self, user_id: int, amount: int) -> User:
         """Изменяет баланс пользователя"""
         with self.get_session() as session:
