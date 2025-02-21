@@ -5,6 +5,7 @@ from db.database import Database
 import logging
 from bot.utils.funcs import add_balance_with_notification
 from aiogram import Bot
+from aiogram.client.default import DefaultBotProperties
 
 app = Flask(__name__)
 db = Database()
@@ -15,7 +16,7 @@ freekassa = FreeKassa(
     secret_word_2=str(ParametersManager.get_parameter("secret_word_2")),
 )
 
-bot = Bot(token=ParametersManager.get_parameter("bot_token"))
+
 
 
 @app.route("/payment/notification", methods=["POST"])
@@ -35,7 +36,11 @@ async def payment_notification():
             return jsonify({"error": "Invalid signature"}), 400
 
         user_id = int(order_id.split("_")[0])
-        await add_balance_with_notification(user_id, float(amount), bot)
+        with Bot(
+            token=ParametersManager.get_parameter("bot_token"),
+            default=DefaultBotProperties(parse_mode="HTML"),
+            ) as bot:
+            await add_balance_with_notification(user_id, float(amount), bot)
 
         return "YES", 200
 
