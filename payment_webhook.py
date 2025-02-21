@@ -10,6 +10,18 @@ from aiogram.client.default import DefaultBotProperties
 app = Flask(__name__)
 db = Database()
 
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('payment_webhook.log')
+    ]
+)
+logger = logging.getLogger(__name__)
+
+
 freekassa = FreeKassa(
     shop_id=int(ParametersManager.get_parameter("shop_id")),
     secret_word_1=str(ParametersManager.get_parameter("secret_word_1")),
