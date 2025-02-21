@@ -6,6 +6,7 @@ import logging
 from bot.utils.funcs import add_balance_with_notification, error_notify
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
+import json
 
 app = Flask(__name__)
 db = Database()
@@ -13,11 +14,8 @@ db = Database()
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('payment_webhook.log')
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(), logging.FileHandler("payment_webhook.log")],
 )
 logger = logging.getLogger(__name__)
 
@@ -38,14 +36,16 @@ bot = Bot(
 async def payment_notification():
     try:
         logging.info(f"Content-Type: {request.content_type}")
+        logging.info(f"Form данные: {request.form}")
 
-        # Получаем данные в зависимости от типа контента
+        # Получаем и парсим данные
         if request.is_json:
-            logging.info(f"JSON данные: {request.get_json(silent=True)}")
             data = request.get_json()
         else:
-            logging.info(f"Form данные: {request.form}")
-            data = request.form
+            # Получаем первый ключ из form-data, который содержит JSON строку
+            json_str = next(iter(request.form))
+            data = json.loads(json_str)
+            logging.info(f"Распарсенные данные: {data}")
 
         merchant_id = data.get("MERCHANT_ID")
         amount = data.get("AMOUNT")
