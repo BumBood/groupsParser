@@ -11,7 +11,6 @@ db = Database()
 
 freekassa = FreeKassa(
     shop_id=int(ParametersManager.get_parameter("shop_id")),
-    api_key=str(ParametersManager.get_parameter("api_kassa")),
     secret_word_1=str(ParametersManager.get_parameter("secret_word_1")),
     secret_word_2=str(ParametersManager.get_parameter("secret_word_2")),
 )
