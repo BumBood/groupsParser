@@ -24,7 +24,15 @@ async def add_balance_with_notification(user_id: int, amount: int, bot: Bot):
     
     logging.info(f"Пользователь {user_id} пополнил баланс на {amount}")
     
-    await notify_admins(bot, f"Пользователь {user_id} пополнил баланс на {amount} ₽")
+    user = db.get_user(user_id)
+
+    admin_text = ("💰 Пополнили баланс!\n\n"
+                f"Юзернейм: {user.username}\n"
+                f"Сумма пополнения: {amount}₽\n"
+                f"ID: <code>{user_id}</code>\n"
+                f"Пришел по метке: {user.referrer_code}")
+
+    await notify_admins(bot, admin_text)
     await bot.send_message(user_id, f"Баланс пополнен на {amount} ₽")
 
 

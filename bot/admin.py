@@ -684,7 +684,34 @@ async def process_broadcast_album(message: AlbumMessage, state: FSMContext):
     users = db.get_all_users()
     total_users = len(users)
 
-    await message[0].answer(
+    # Создаем список InputMedia объектов
+    media_group = []
+    for msg in message.messages:
+        if msg.photo:
+            media_group.append(
+                types.InputMediaPhoto(
+                    media=msg.photo[-1].file_id,
+                    caption=msg.caption if msg.caption else None,
+                )
+            )
+        elif msg.video:
+            media_group.append(
+                types.InputMediaVideo(
+                    media=msg.video.file_id,
+                    caption=msg.caption if msg.caption else None,
+                )
+            )
+        elif msg.document:
+            media_group.append(
+                types.InputMediaDocument(
+                    media=msg.document.file_id,
+                    caption=msg.caption if msg.caption else None,
+                )
+            )
+
+    # Используем первое сообщение из альбома для отправки уведомления
+    first_message = message.messages[0]
+    await first_message.answer(
         f"⏳ Начинаю рассылку альбома {total_users} пользователям..."
     )
 
@@ -692,11 +719,9 @@ async def process_broadcast_album(message: AlbumMessage, state: FSMContext):
     error_count = 0
     blocked_count = 0
 
-    media_group = [msg.as_input_media() for msg in message]
-
     for user in users:
         try:
-            await message[0].bot.send_media_group(
+            await first_message.bot.send_media_group(
                 chat_id=user.user_id, media=media_group
             )
             success_count += 1
@@ -716,7 +741,7 @@ async def process_broadcast_album(message: AlbumMessage, state: FSMContext):
         f"Рассылка альбома завершена. Успешно: {success_count}, заблокировано: {blocked_count}, других ошибок: {error_count - blocked_count}"
     )
 
-    await message[0].answer(
+    await first_message.answer(
         f"✅ Рассылка альбома завершена\n"
         f"📊 Статистика:\n"
         f"• Всего пользователей: {total_users}\n"
@@ -901,6 +926,16 @@ async def show_code_info(callback: types.CallbackQuery):
     )
 
     keyboard = []
+
+    # Добавляем кнопку удаления только если у метки нет пользователей
+    if code_data["users_count"] == 0:
+        keyboard.append(
+            [
+                types.InlineKeyboardButton(
+                    text="🗑 Удалить метку", callback_data=f"delete_ref_link_{code}"
+                )
+            ]
+        )
 
     keyboard.append(
         [types.InlineKeyboardButton(text="◀️ К источникам", callback_data="view_codes")]
@@ -1199,14 +1234,14 @@ async def request_new_balance(callback: types.CallbackQuery, state: FSMContext):
 
     user_id = int(callback.data.replace("edit_user_balance_", ""))
     user = db.get_user(user_id)
-    
+
     if not user:
         await callback.answer("Пользователь не найден")
         return
 
     await state.update_data(target_user_id=user_id)
     await state.set_state(AdminStates.waiting_for_user_balance_edit)
-    
+
     await callback.message.edit_text(
         f"💰 Введите пополнение для пользователя {user.username or user.user_id}\n"
         f"Текущий баланс: {user.balance}₽",
@@ -1214,13 +1249,13 @@ async def request_new_balance(callback: types.CallbackQuery, state: FSMContext):
             inline_keyboard=[
                 [
                     types.InlineKeyboardButton(
-                        text="◀️ Назад",
-                        callback_data=f"user_profile_{user_id}"
+                        text="◀️ Назад", callback_data=f"user_profile_{user_id}"
                     )
                 ]
             ]
-        )
+        ),
     )
+
 
 @router.message(AdminStates.waiting_for_user_balance_edit, F.text.regexp(r"^-?\d+$"))
 async def process_new_balance(message: types.Message, state: FSMContext, bot: Bot):
@@ -1230,14 +1265,13 @@ async def process_new_balance(message: types.Message, state: FSMContext, bot: Bo
     data = await state.get_data()
     user_id = data["target_user_id"]
     new_balance = int(message.text)
-    
+
     user = db.get_user(user_id)
     if not user:
         await message.answer("❌ Пользователь не найден")
         await state.clear()
         return
 
-    
     await add_balance_with_notification(user_id, new_balance, bot)
     logger.info(f"Баланс пользователя {user_id} изменен на {new_balance}")
 
@@ -1248,20 +1282,19 @@ async def process_new_balance(message: types.Message, state: FSMContext, bot: Bo
             inline_keyboard=[
                 [
                     types.InlineKeyboardButton(
-                        text="◀️ К профилю",
-                        callback_data=f"user_profile_{user_id}"
+                        text="◀️ К профилю", callback_data=f"user_profile_{user_id}"
                     )
                 ]
             ]
-        )
+        ),
     )
     await state.clear()
 
+
 @router.message(AdminStates.waiting_for_user_balance_edit)
 async def invalid_balance(message: types.Message):
-    await message.answer(
-        "❌ Пожалуйста, введите корректное число"
-    )
+    await message.answer("❌ Пожалуйста, введите корректное число")
+
 
 @router.callback_query(F.data.startswith("toggle_admin_"))
 async def toggle_admin_status(callback: types.CallbackQuery):
@@ -1270,7 +1303,7 @@ async def toggle_admin_status(callback: types.CallbackQuery):
 
     user_id = int(callback.data.replace("toggle_admin_", ""))
     user = db.get_user(user_id)
-    
+
     if not user:
         await callback.answer("Пользователь не найден")
         return
@@ -1278,13 +1311,17 @@ async def toggle_admin_status(callback: types.CallbackQuery):
     # Меняем статус администратора на противоположный
     new_admin_status = not user.is_admin
     db.set_admin(user_id, new_admin_status)
-    
-    status_text = "назначен администратором" if new_admin_status else "снят с должности администратора"
-    logger.info(f"Пользователь {user_id} {status_text} администратором {callback.from_user.id}")
 
-    await callback.answer(
-        f"✅ Пользователь {status_text}"
+    status_text = (
+        "назначен администратором"
+        if new_admin_status
+        else "снят с должности администратора"
     )
+    logger.info(
+        f"Пользователь {user_id} {status_text} администратором {callback.from_user.id}"
+    )
+
+    await callback.answer(f"✅ Пользователь {status_text}")
 
     # Обновляем информацию в профиле пользователя
     text = (
@@ -1302,22 +1339,35 @@ async def toggle_admin_status(callback: types.CallbackQuery):
             [
                 types.InlineKeyboardButton(
                     text="💰 Изменить баланс",
-                    callback_data=f"edit_user_balance_{user.user_id}"
+                    callback_data=f"edit_user_balance_{user.user_id}",
                 )
             ],
             [
                 types.InlineKeyboardButton(
                     text="👑 Права администратора",
-                    callback_data=f"toggle_admin_{user.user_id}"
+                    callback_data=f"toggle_admin_{user.user_id}",
                 )
             ],
             [
                 types.InlineKeyboardButton(
-                    text="◀️ Назад",
-                    callback_data="view_users_stats"
+                    text="◀️ Назад", callback_data="view_users_stats"
                 )
             ],
         ]
     )
 
     await callback.message.edit_text(text, reply_markup=keyboard)
+
+
+@router.callback_query(F.data.startswith("delete_ref_link_"))
+async def delete_ref_link(callback: types.CallbackQuery):
+    if not db.get_user(callback.from_user.id).is_admin:
+        return
+
+    code = callback.data.replace("delete_ref_link_", "")
+
+    if db.delete_referral_link(code):
+        await callback.answer("✅ Метка успешно удалена")
+        await view_codes(callback)
+    else:
+        await callback.answer("❌ Не удалось удалить метку")

@@ -11,6 +11,7 @@ start_keyboard = InlineKeyboardMarkup(
             )
         ],
         [InlineKeyboardButton(text="💰 Пополнить баланс", callback_data="deposit")],
+        [InlineKeyboardButton(text="💬 Поддержка", callback_data="support")],
     ]
 )
 

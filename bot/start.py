@@ -1,9 +1,10 @@
 import copy
 import logging
-from aiogram import Router, types
+from aiogram import F, Router, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from bot.utils.funcs import notify_admins
+from config.parameters_manager import ParametersManager
 from db.database import Database
 
 from .keyboards import start_keyboard
@@ -65,3 +66,8 @@ async def start_command(message: types.Message, state: FSMContext):
         reply_markup=keyboard,
         parse_mode="HTML",
     )
+
+@router.callback_query(F.data == "support")
+async def support_callback(callback: types.CallbackQuery):
+    await callback.message.answer(f"Ссылка на поддержку: {ParametersManager.get_parameter('support_link')}")
+

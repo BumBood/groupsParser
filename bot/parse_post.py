@@ -60,6 +60,20 @@ async def process_post_link(message: types.Message, state: FSMContext):
         # Получаем количество комментариев
         logger.debug(f"Получаем количество комментариев для поста: {message.text}")
         comments_count = await parser.get_comments_count(message.text)
+
+        # Добавляем проверку на отсутствие комментариев
+        if comments_count == 0:
+            logger.info(f"Пост без комментариев от пользователя {message.from_user.id}")
+            await new_message.edit_text(
+                "❌ В этом посте нет комментариев.\n"
+                "Пожалуйста, отправьте ссылку на пост, содержащий комментарии.",
+                reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
+                    [types.InlineKeyboardButton(text="📝 Отправить другую ссылку", callback_data="collect_comments")]
+                ])
+            )
+            await state.clear()
+            return
+
         free_limit = ParametersManager.get_parameter("free_comments_limit")
         parse_cost = ParametersManager.get_parameter("parse_comments_cost")
 
