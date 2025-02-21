@@ -35,6 +35,9 @@ async def add_balance_with_notification(user_id: int, amount: int, bot: Bot):
     await notify_admins(bot, admin_text)
     await bot.send_message(user_id, f"Баланс пополнен на {amount} ₽")
 
+async def error_notify(bot: Bot, user_message: str, admin_message: str, user_id: int = None):
+    await notify_admins(bot, admin_message)
+    await bot.send_message(user_id, user_message)
 
 def format_user_mention(user_id: int, username: str = None) -> str:
     if username:

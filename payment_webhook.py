@@ -3,7 +3,7 @@ from bot.freekassa import FreeKassa
 from config.parameters_manager import ParametersManager
 from db.database import Database
 import logging
-from bot.utils.funcs import add_balance_with_notification
+from bot.utils.funcs import add_balance_with_notification, error_notify
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 
@@ -29,16 +29,31 @@ async def payment_notification():
         amount = request.form.get("AMOUNT")
         order_id = request.form.get("MERCHANT_ORDER_ID")
         sign = request.form.get("SIGN")
-
+        
+        user_id = int(order_id.split("_")[0])
+        user = db.get_user(user_id)
+        
         if not all([merchant_id, amount, order_id, sign]):
+            await error_notify(
+                bot, 
+                f"Произошла ошибка при обработке платежа. Обратитесь в поддержку: {ParametersManager.get_parameter('support_link')}",
+                f"У пользователя {user_id} произошла ошибка при обработке платежа. Username: {user.username}, сумма: {amount}, order_id: {order_id}, sign: {sign}",
+                user_id
+                )
             logging.error(f"Missing required parameters: {merchant_id}, {amount}, {order_id}, {sign}")
             return jsonify({"error": "Missing required parameters"}), 400
 
         if not freekassa.check_payment_signature(merchant_id, amount, order_id, sign):
+            await error_notify(
+                bot, 
+                f"Произошла ошибка при обработке платежа. Обратитесь в поддержку: {ParametersManager.get_parameter('support_link')}",
+                f"У пользователя {user_id} произошла ошибка при обработке платежа. Username: {user.username}, сумма: {amount}, order_id: {order_id}, sign: {sign}",
+                user_id
+                )
             logging.error(f"Invalid signature: {sign}")
             return jsonify({"error": "Invalid signature"}), 400
 
-        user_id = int(order_id.split("_")[0])
+        
         await add_balance_with_notification(user_id, float(amount), bot)
 
         return "YES", 200
