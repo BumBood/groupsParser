@@ -25,7 +25,7 @@ bot = Bot(
 @app.route("/payment/notification", methods=["POST"])
 async def payment_notification():
     try:
-        
+        logging.info(f"Получены данные платежа: {request.get_json()}")
         merchant_id = request.form.get("MERCHANT_ID")
         amount = request.form.get("AMOUNT")
         order_id = request.form.get("MERCHANT_ORDER_ID")
