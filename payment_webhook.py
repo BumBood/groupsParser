@@ -25,43 +25,53 @@ bot = Bot(
 @app.route("/payment/notification", methods=["POST"])
 async def payment_notification():
     try:
-        logging.info(f"Получены данные платежа: {request.get_json()}")
-        merchant_id = request.form.get("MERCHANT_ID")
-        amount = request.form.get("AMOUNT")
-        order_id = request.form.get("MERCHANT_ORDER_ID")
-        sign = request.form.get("SIGN")
-        
+        logging.info(f"Content-Type: {request.content_type}")
+
+        # Получаем данные в зависимости от типа контента
+        if request.is_json:
+            logging.info(f"JSON данные: {request.get_json(silent=True)}")
+            data = request.get_json()
+        else:
+            logging.info(f"Form данные: {request.form}")
+            data = request.form
+
+        merchant_id = data.get("MERCHANT_ID")
+        amount = data.get("AMOUNT")
+        order_id = data.get("MERCHANT_ORDER_ID")
+        sign = data.get("SIGN")
+
         user_id = int(order_id.split("_")[0])
         user = db.get_user(user_id)
-        
+
         if not all([merchant_id, amount, order_id, sign]):
             await error_notify(
-                bot, 
+                bot,
                 f"Произошла ошибка при обработке платежа. Обратитесь в поддержку: {ParametersManager.get_parameter('support_link')}",
                 f"У пользователя {user_id} произошла ошибка при обработке платежа. Username: {user.username}, сумма: {amount}, order_id: {order_id}, sign: {sign}",
-                user_id
-                )
-            logging.error(f"Missing required parameters: {merchant_id}, {amount}, {order_id}, {sign}")
+                user_id,
+            )
+            logging.error(
+                f"Missing required parameters: {merchant_id}, {amount}, {order_id}, {sign}"
+            )
             return jsonify({"error": "Missing required parameters"}), 400
 
         if not freekassa.check_payment_signature(merchant_id, amount, order_id, sign):
             await error_notify(
-                bot, 
+                bot,
                 f"Произошла ошибка при обработке платежа. Обратитесь в поддержку: {ParametersManager.get_parameter('support_link')}",
                 f"У пользователя {user_id} произошла ошибка при обработке платежа. Username: {user.username}, сумма: {amount}, order_id: {order_id}, sign: {sign}",
-                user_id
-                )
+                user_id,
+            )
             logging.error(f"Invalid signature: {sign}")
             return jsonify({"error": "Invalid signature"}), 400
 
-        
         await add_balance_with_notification(user_id, float(amount), bot)
 
         return "YES", 200
 
     except Exception as e:
         logging.error(f"Ошибка при обработке уведомления о платеже: {e}")
-        
+
         return jsonify({"error": str(e)}), 500
 
 
