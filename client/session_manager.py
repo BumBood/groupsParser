@@ -26,7 +26,7 @@ class SessionManager:
             return None
 
         shuffle(session_files)
-        
+
         # Ищем первую свободную сессию
         for session_file in session_files:
             session_name = os.path.splitext(os.path.basename(session_file))[0]
@@ -40,16 +40,15 @@ class SessionManager:
                     api_id=session_data["app_id"],
                     api_hash=session_data["app_hash"],
                 )
-
                 self.logger.info(f"Сессия {session_name} получила задание")
-                self.active_sessions.add(client.session.filename)
+                self.active_sessions.add(session_name)
 
                 await client.connect()
                 if await client.is_user_authorized():
                     return client
                 else:
                     await client.disconnect()
-                    self.active_sessions.remove(client.session.filename)
+                    self.active_sessions.remove(session_name)
                     self.logger.warning(f"Сессия {session_name} не авторизована")
 
         self.logger.warning("Все сессии заняты")
@@ -57,7 +56,8 @@ class SessionManager:
 
     async def release_session(self, client: TelegramClient) -> None:
         """Освобождает сессию после использования"""
-        session_name = os.path.basename(client.session.filename)
+        session_name = os.path.splitext(os.path.basename(client.session.filename))[0]
+
         self.logger.debug(f"Освобождение сессии: {session_name}")
         await client.disconnect()
         if session_name in self.active_sessions:

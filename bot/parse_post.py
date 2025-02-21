@@ -67,9 +67,16 @@ async def process_post_link(message: types.Message, state: FSMContext):
             await new_message.edit_text(
                 "❌ В этом посте нет комментариев.\n"
                 "Пожалуйста, отправьте ссылку на пост, содержащий комментарии.",
-                reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
-                    [types.InlineKeyboardButton(text="📝 Отправить другую ссылку", callback_data="collect_comments")]
-                ])
+                reply_markup=types.InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [
+                            types.InlineKeyboardButton(
+                                text="📝 Отправить другую ссылку",
+                                callback_data="collect_comments",
+                            )
+                        ]
+                    ]
+                ),
             )
             await state.clear()
             return
@@ -132,7 +139,7 @@ async def process_post_link(message: types.Message, state: FSMContext):
                     ]
                 )
 
-            await message.answer(
+            await new_message.edit_text(
                 text, reply_markup=types.InlineKeyboardMarkup(inline_keyboard=buttons)
             )
             return
@@ -225,11 +232,23 @@ async def process_parsing(
 
     try:
         logger.debug(f"Начало парсинга комментариев для поста: {post_link}")
-        # Получаем DataFrame с комментариями
-        df_dict = await parser.parse_comments(
-            post_link, limit=free_limit if use_limit else None
-        )
 
+        last_progress = 0
+        df_dict = None
+
+        async for progress, data in parser.parse_comments(
+            post_link, limit=free_limit if use_limit else None
+        ):
+            # Обновляем сообщение только если прогресс изменился на 5% или больше
+            if progress - last_progress >= 5:
+                await callback.message.edit_text(
+                    f"⏳ Парсинг комментариев: {progress}%"
+                )
+                last_progress = progress
+
+            if data is not None:
+                df_dict = data
+        
         # Сохраняем в Excel
         logger.debug(f"Сохранение результатов в файл: {file_path}")
         parser.save_to_excel(df_dict, file_path)
@@ -237,6 +256,7 @@ async def process_parsing(
         # Отправляем файл
         logger.debug(f"Отправка файла пользователю {callback.from_user.id}")
         with open(file_path, "rb"):
+            await callback.message.delete()
             await callback.message.answer_document(
                 types.FSInputFile(file_path, filename="comments.xlsx"),
                 caption="✅ Парсинг завершен!",
@@ -244,8 +264,6 @@ async def process_parsing(
 
         # Списываем средства, если необходимо
         comments_count = len(df_dict["Комментарии"])
-        free_limit = ParametersManager.get_parameter("free_comments_limit")
-
         if comments_count > free_limit:
             parse_cost = ParametersManager.get_parameter("parse_comments_cost")
             logger.info(

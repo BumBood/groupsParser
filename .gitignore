@@ -62,3 +62,7 @@ Thumbs.db
 
 parameters.yaml
 task.txt
+alembic/versions/*
+
+test.py
+test.txt

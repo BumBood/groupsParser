@@ -1,7 +1,7 @@
 import logging
 import pandas as pd
 from telethon.tl.types import User
-from typing import List, Dict
+from typing import List, Dict, AsyncGenerator, Tuple, Union
 from .session_manager import SessionManager
 import asyncio
 
@@ -11,9 +11,11 @@ class CommentParser:
         self.session_manager = SessionManager(sessions_dir)
         self.logger = logging.getLogger(__name__)
 
-    async def parse_comments(self, post_link: str, limit: int = None) -> pd.DataFrame:
+    async def parse_comments(
+        self, post_link: str, limit: int = None
+    ) -> AsyncGenerator[Tuple[int, Union[None, Dict[str, pd.DataFrame]]], None]:
         """
-        Парсит комментарии из поста Telegram и сохраняет их в DataFrame
+        Парсит комментарии из поста Telegram и возвращает прогресс и DataFrame
 
         Args:
             post_link: ссылка на пост
@@ -26,23 +28,16 @@ class CommentParser:
             raise Exception("Нет доступных сессий")
 
         try:
-            # Извлекаем channel_id и message_id из ссылки
-            # Пример ссылки: https://t.me/channel_name/1234
             channel_name = post_link.split("/")[-2]
             message_id = int(post_link.split("/")[-1])
-            self.logger.debug(
-                f"Извлечены данные: канал={channel_name}, id сообщения={message_id}"
-            )
+
+            channel = await client.get_entity(channel_name)
+            message = await client.get_messages(channel, ids=message_id)
+            total_comments = message.replies.replies if message.replies else 0
 
             comments_data: List[Dict] = []
+            users_data = {}
             count = 0
-
-            # Получаем канал
-            channel = await client.get_entity(channel_name)
-            # Получаем сообщение
-            message = await client.get_messages(channel, ids=message_id)
-            # Получаем комментарии
-            users_data = {}  # Словарь для хранения информации о пользователях
 
             async for comment in client.iter_messages(channel, reply_to=message.id):
                 if limit and count >= limit:
@@ -62,12 +57,9 @@ class CommentParser:
                         "date": comment.date.strftime("%Y-%m-%d %H:%M:%S"),
                     }
                     comments_data.append(comment_data)
-                    count += 1
 
-                    # Собираем информацию о пользователях
                     if comment.sender and comment.sender_id not in users_data:
                         sender = comment.sender
-                        # Обработка статуса
                         status = sender.status
                         if hasattr(status, "was_online"):
                             formatted_status = status.was_online.strftime(
@@ -86,16 +78,16 @@ class CommentParser:
                             "Телефон": getattr(sender, "phone", None),
                             "Последняя активность": formatted_status,
                         }
-                    self.logger.debug(f"Обработан комментарий id={comment.id}")
+
+                    count += 1
+                    progress = int((count / (limit or total_comments)) * 100)
+                    yield progress, None
 
             df_comments = pd.DataFrame(comments_data)
             df_users = pd.DataFrame(list(users_data.values()))
-
-            # Создаем словарь с двумя DataFrame для разных листов
             df = {"Комментарии": df_comments, "Пользователи": df_users}
-            self.logger.info(
-                f"Парсинг завершен. Получено {len(comments_data)} комментариев"
-            )
+
+            yield 100, df
 
         except Exception as e:
             self.logger.error(f"Ошибка при парсинге комментариев: {str(e)}")
@@ -103,7 +95,6 @@ class CommentParser:
         finally:
             await self.session_manager.release_session(client=client)
             self.logger.debug("Сессия освобождена")
-            return df
 
     def save_to_excel(
         self, df_dict: Dict[str, pd.DataFrame], output_file: str = "result.xlsx"
@@ -124,8 +115,10 @@ class CommentParser:
                     for idx, col in enumerate(df.columns):
                         # Сортируем пользователей по последней активности если это лист "Пользователи"
                         if sheet_name == "Пользователи":
-                            df = df.sort_values(by="Последняя активность", ascending=False)
-                            
+                            df = df.sort_values(
+                                by="Последняя активность", ascending=False
+                            )
+
                         # Получаем максимальную длину в колонке
                         max_length = max(
                             df[col].astype(str).apply(len).max(), len(str(col))

@@ -1,5 +1,0 @@
-ID платежной системы: 1, URL: https://fmt.me/form/185503300/e044628f578db8e38274a72188c1ea04
-ID платежной системы: 2, URL: https://fmt.me/form/185503304/afba9b0ea287c5c99134dfe19686c90e
-ID платежной системы: 24, URL: https://fmt.me/form/185503441/3b418aebd9a85166461dbf253c4985cd
-ID платежной системы: 26, URL: https://fmt.me/form/185503451/6d2ed5b2282a41afc47ef21ae240bad9
-ID платежной системы: 27, URL: https://fmt.me/form/185503463/2cd08972e7f8e8b00e57d7e336115906
