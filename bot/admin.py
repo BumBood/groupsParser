@@ -44,9 +44,11 @@ class AdminStates(StatesGroup):
     waiting_for_archive = State()
     waiting_for_broadcast = State()
     waiting_for_ref_code = State()
+    waiting_for_user_balance_edit = State()
+
 
 async def admin_menu_base(message: types.Message, user_id: int):
-    if db.get_user(message.from_user.id).is_admin:
+    if db.get_user(user_id).is_admin:
         logger.info(f"Администратор {user_id} открыл админ-панель")
         keyboard = types.InlineKeyboardMarkup(
             inline_keyboard=[
@@ -95,9 +97,15 @@ async def admin_menu_base(message: types.Message, user_id: int):
                         text="📊 История пополнений", callback_data="export_payments"
                     )
                 ],
+                [
+                    types.InlineKeyboardButton(
+                        text="👥 Пользователи", callback_data="view_users_stats"
+                    )
+                ],
             ]
         )
         await message.answer("🔧 Панель администратора", reply_markup=keyboard)
+
 
 @router.message(Command("admin"))
 async def admin_menu(message: types.Message):
@@ -305,14 +313,14 @@ async def view_sessions(callback: types.CallbackQuery, state: FSMContext):
         return
 
     def session_callback(session: dict) -> tuple[str, str]:
-        status = "🔴" if session["is_active"] else "⚪️"
-        return f"{status} {session['phone']}", f"session_info_{session['session_name']}"
+        return f"+{session['phone']}", f"session_info_{session['session_name']}"
 
     paginator = Paginator(
         items=sessions,
         items_per_page=4,
         callback_prefix="sessions",
         item_callback=session_callback,
+        return_callback="back_to_admin",
     )
 
     await callback.message.edit_text(
@@ -330,14 +338,14 @@ async def handle_sessions_page(callback: types.CallbackQuery):
     sessions = session_manager.get_sessions_info()
 
     def session_callback(session: dict) -> tuple[str, str]:
-        status = "🔴" if session["is_active"] else "⚪️"
-        return f"{status} {session['phone']}", f"session_info_{session['session_name']}"
+        return f"+{session['phone']}", f"session_info_{session['session_name']}"
 
     paginator = Paginator(
         items=sessions,
         items_per_page=4,
         callback_prefix="sessions",
         item_callback=session_callback,
+        return_callback="back_to_admin",
     )
 
     await callback.message.edit_text(
@@ -359,10 +367,8 @@ async def show_session_info(callback: types.CallbackQuery):
         await callback.answer("Сессия не найдена")
         return
 
-    status = "🔴 Активна" if session["is_active"] else "⚪️ Нет задач"
     text = (
         f"📱 Информация о сессии:\n\n"
-        f"• {status}\n"
         f"📞 Телефон: {session['phone']}\n"
         f"👤 Username: @{session['username']}\n"
         f"📝 Имя: {session['first_name']} {session['last_name']}\n"
@@ -675,7 +681,6 @@ async def process_broadcast_album(message: AlbumMessage, state: FSMContext):
 
     logger.info(f"Начало рассылки альбома от администратора {message.from_user.id}")
 
-    # Получаем всех пользователей из базы
     users = db.get_all_users()
     total_users = len(users)
 
@@ -685,23 +690,30 @@ async def process_broadcast_album(message: AlbumMessage, state: FSMContext):
 
     success_count = 0
     error_count = 0
+    blocked_count = 0
 
     media_group = [msg.as_input_media() for msg in message]
 
     for user in users:
         try:
-            # Отправляем альбом каждому пользователю
             await message[0].bot.send_media_group(
                 chat_id=user.user_id, media=media_group
             )
             success_count += 1
+            if not user.is_active:
+                db.update_user_activity(user.user_id, True)
             logger.debug(f"Альбом успешно отправлен пользователю {user.user_id}")
         except Exception as e:
             error_count += 1
+            if "bot was blocked by the user" in str(e):
+                blocked_count += 1
+                if user.is_active:
+                    db.update_user_activity(user.user_id, False)
+                logger.info(f"Пользователь {user.user_id} заблокировал бота")
             logger.error(f"Ошибка отправки альбома пользователю {user.user_id}: {e}")
 
     logger.info(
-        f"Рассылка альбома завершена. Успешно: {success_count}, ошибок: {error_count}"
+        f"Рассылка альбома завершена. Успешно: {success_count}, заблокировано: {blocked_count}, других ошибок: {error_count - blocked_count}"
     )
 
     await message[0].answer(
@@ -709,7 +721,8 @@ async def process_broadcast_album(message: AlbumMessage, state: FSMContext):
         f"📊 Статистика:\n"
         f"• Всего пользователей: {total_users}\n"
         f"• Успешно отправлено: {success_count}\n"
-        f"• Ошибок: {error_count}",
+        f"• Заблокировали бота: {blocked_count}\n"
+        f"• Другие ошибки: {error_count - blocked_count}",
         reply_markup=types.InlineKeyboardMarkup(
             inline_keyboard=[
                 [
@@ -726,7 +739,6 @@ async def process_broadcast_album(message: AlbumMessage, state: FSMContext):
 
 @router.message(AdminStates.waiting_for_broadcast)
 async def process_broadcast(message: types.Message, state: FSMContext):
-    """Обработка одиночных сообщений для рассылки"""
     if not db.get_user(message.from_user.id).is_admin:
         logger.warning(
             f"Попытка несанкционированной рассылки от пользователя {message.from_user.id}"
@@ -735,7 +747,6 @@ async def process_broadcast(message: types.Message, state: FSMContext):
 
     logger.info(f"Начало рассылки от администратора {message.from_user.id}")
 
-    # Получаем всех пользователей из базы
     users = db.get_all_users()
     total_users = len(users)
 
@@ -743,25 +754,35 @@ async def process_broadcast(message: types.Message, state: FSMContext):
 
     success_count = 0
     error_count = 0
+    blocked_count = 0
 
     for user in users:
         try:
-            # Копируем исходное сообщение каждому пользователю
             await message.copy_to(user.user_id)
             success_count += 1
+            if not user.is_active:
+                db.update_user_activity(user.user_id, True)
             logger.debug(f"Сообщение успешно отправлено пользователю {user.user_id}")
         except Exception as e:
             error_count += 1
+            if "bot was blocked by the user" in str(e):
+                blocked_count += 1
+                if user.is_active:
+                    db.update_user_activity(user.user_id, False)
+                logger.info(f"Пользователь {user.user_id} заблокировал бота")
             logger.error(f"Ошибка отправки сообщения пользователю {user.user_id}: {e}")
 
-    logger.info(f"Рассылка завершена. Успешно: {success_count}, ошибок: {error_count}")
+    logger.info(
+        f"Рассылка завершена. Успешно: {success_count}, заблокировано: {blocked_count}, других ошибок: {error_count - blocked_count}"
+    )
 
     await message.answer(
         f"✅ Рассылка завершена\n"
         f"📊 Статистика:\n"
         f"• Всего пользователей: {total_users}\n"
         f"• Успешно отправлено: {success_count}\n"
-        f"• Ошибок: {error_count}",
+        f"• Заблокировали бота: {blocked_count}\n"
+        f"• Другие ошибки: {error_count - blocked_count}",
         reply_markup=types.InlineKeyboardMarkup(
             inline_keyboard=[
                 [
@@ -813,6 +834,7 @@ async def view_codes(callback: types.CallbackQuery):
         items_per_page=5,
         callback_prefix="codes",
         item_callback=code_callback,
+        return_callback="back_to_admin",
     )
 
     keyboard = paginator.get_page_keyboard(0)
@@ -848,6 +870,7 @@ async def handle_codes_page(callback: types.CallbackQuery):
         items_per_page=5,
         callback_prefix="codes",
         item_callback=code_callback,
+        return_callback="back_to_admin",
     )
 
     await callback.message.edit_text(
@@ -966,9 +989,7 @@ async def export_payments(callback: types.CallbackQuery):
             payments = db.get_all_payments()
             for payment in payments:
                 print(payment)
-                f.write(
-                    f"{payment.user_id};{payment.amount};{payment.created_at}\n"
-                )
+                f.write(f"{payment.user_id};{payment.amount};{payment.created_at}\n")
 
         # Отправляем файл
         await callback.message.answer_document(
@@ -1045,3 +1066,258 @@ async def validate_sessions(sessions_dir: str) -> tuple[list, list]:
         f"Валидация завершена. Найдено {len(valid_pairs)} валидных пар и {len(errors)} ошибок"
     )
     return errors, valid_pairs
+
+
+@router.callback_query(F.data == "view_users_stats")
+async def show_users_statistics(callback: types.CallbackQuery):
+    if not db.get_user(callback.from_user.id).is_admin:
+        return
+
+    total_users = len(db.get_all_users())
+    active_users = len([u for u in db.get_all_users() if u.is_active])
+    inactive_users = total_users - active_users
+
+    text = (
+        f"📊 Статистика пользователей:\n\n"
+        f"👥 Всего запустили: {total_users}\n"
+        f"❌ Неактивные: {inactive_users}\n"
+        f"✅ Активные: {active_users}"
+    )
+
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text="👑 Администраторы", callback_data="view_admins_list"
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="💰 Пользователи с балансом",
+                    callback_data="view_users_with_balance",
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="📋 Все пользователи", callback_data="view_all_users"
+                )
+            ],
+            [types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_admin")],
+        ]
+    )
+
+    await callback.message.edit_text(text, reply_markup=keyboard)
+
+
+@router.callback_query(
+    F.data.startswith(("view_admins_list", "view_users_with_balance", "view_all_users"))
+)
+async def show_users_list(callback: types.CallbackQuery):
+    if not db.get_user(callback.from_user.id).is_admin:
+        return
+
+    users = db.get_all_users()
+
+    if callback.data == "view_admins_list":
+        users = [u for u in users if u.is_admin]
+        title = "👑 Список администраторов"
+    elif callback.data == "view_users_with_balance":
+        users = [u for u in users if u.balance > 0]
+        title = "💰 Пользователи с балансом"
+    else:
+        title = "📋 Все пользователи"
+
+    def user_callback(user) -> tuple[str, str]:
+        return (
+            f"{'👑 ' if user.is_admin else ''}{user.username or user.full_name or user.user_id} ({user.balance}₽)",
+            f"user_profile_{user.user_id}",
+        )
+
+    paginator = Paginator(
+        items=users,
+        items_per_page=10,
+        callback_prefix="users",
+        item_callback=user_callback,
+        return_callback="view_users_stats",
+    )
+
+    await callback.message.edit_text(title, reply_markup=paginator.get_page_keyboard(0))
+
+
+@router.callback_query(F.data.startswith("user_profile_"))
+async def show_user_profile(callback: types.CallbackQuery):
+    if not db.get_user(callback.from_user.id).is_admin:
+        return
+
+    user_id = int(callback.data.replace("user_profile_", ""))
+    user = db.get_user(user_id)
+
+    if not user:
+        await callback.answer("Пользователь не найден")
+        return
+
+    text = (
+        f"👤 Профиль пользователя:\n\n"
+        f"ID: {user.user_id}\n"
+        f"Username: @{user.username}\n"
+        f"Имя: {user.full_name}\n"
+        f"Баланс: {user.balance}₽\n"
+        f"Статус: {'Администратор' if user.is_admin else 'Пользователь'}\n"
+        f"Метка: {user.referrer_code}\n"
+        f"Активный: {'🟢 Да' if user.is_active else '🔴 Нет'}"
+    )
+
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text="💰 Изменить баланс",
+                    callback_data=f"edit_user_balance_{user.user_id}",
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="👑 Права администратора",
+                    callback_data=f"toggle_admin_{user.user_id}",
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="◀️ Назад", callback_data="view_users_stats"
+                )
+            ],
+        ]
+    )
+
+    await callback.message.edit_text(text, reply_markup=keyboard)
+
+
+@router.callback_query(F.data.startswith("edit_user_balance_"))
+async def request_new_balance(callback: types.CallbackQuery, state: FSMContext):
+    if not db.get_user(callback.from_user.id).is_admin:
+        return
+
+    user_id = int(callback.data.replace("edit_user_balance_", ""))
+    user = db.get_user(user_id)
+    
+    if not user:
+        await callback.answer("Пользователь не найден")
+        return
+
+    await state.update_data(target_user_id=user_id)
+    await state.set_state(AdminStates.waiting_for_user_balance_edit)
+    
+    await callback.message.edit_text(
+        f"💰 Введите пополнение для пользователя {user.username or user.user_id}\n"
+        f"Текущий баланс: {user.balance}₽",
+        reply_markup=types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text="◀️ Назад",
+                        callback_data=f"user_profile_{user_id}"
+                    )
+                ]
+            ]
+        )
+    )
+
+@router.message(AdminStates.waiting_for_user_balance_edit, F.text.regexp(r"^-?\d+$"))
+async def process_new_balance(message: types.Message, state: FSMContext, bot: Bot):
+    if not db.get_user(message.from_user.id).is_admin:
+        return
+
+    data = await state.get_data()
+    user_id = data["target_user_id"]
+    new_balance = int(message.text)
+    
+    user = db.get_user(user_id)
+    if not user:
+        await message.answer("❌ Пользователь не найден")
+        await state.clear()
+        return
+
+    
+    await add_balance_with_notification(user_id, new_balance, bot)
+    logger.info(f"Баланс пользователя {user_id} изменен на {new_balance}")
+
+    await message.answer(
+        f"✅ Баланс пользователя {user.username or user_id} успешно изменен\n"
+        f"Баланс: {user.balance + new_balance}₽\n",
+        reply_markup=types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text="◀️ К профилю",
+                        callback_data=f"user_profile_{user_id}"
+                    )
+                ]
+            ]
+        )
+    )
+    await state.clear()
+
+@router.message(AdminStates.waiting_for_user_balance_edit)
+async def invalid_balance(message: types.Message):
+    await message.answer(
+        "❌ Пожалуйста, введите корректное число"
+    )
+
+@router.callback_query(F.data.startswith("toggle_admin_"))
+async def toggle_admin_status(callback: types.CallbackQuery):
+    if not db.get_user(callback.from_user.id).is_admin:
+        return
+
+    user_id = int(callback.data.replace("toggle_admin_", ""))
+    user = db.get_user(user_id)
+    
+    if not user:
+        await callback.answer("Пользователь не найден")
+        return
+
+    # Меняем статус администратора на противоположный
+    new_admin_status = not user.is_admin
+    db.set_admin(user_id, new_admin_status)
+    
+    status_text = "назначен администратором" if new_admin_status else "снят с должности администратора"
+    logger.info(f"Пользователь {user_id} {status_text} администратором {callback.from_user.id}")
+
+    await callback.answer(
+        f"✅ Пользователь {status_text}"
+    )
+
+    # Обновляем информацию в профиле пользователя
+    text = (
+        f"👤 Профиль пользователя:\n\n"
+        f"ID: {user.user_id}\n"
+        f"Username: @{user.username}\n"
+        f"Имя: {user.full_name}\n"
+        f"Баланс: {user.balance}₽\n"
+        f"Статус: {'Администратор' if new_admin_status else 'Пользователь'}\n"
+        f"Активный: {'🟢 Да' if user.is_active else '🔴 Нет'}"
+    )
+
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text="💰 Изменить баланс",
+                    callback_data=f"edit_user_balance_{user.user_id}"
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="👑 Права администратора",
+                    callback_data=f"toggle_admin_{user.user_id}"
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="◀️ Назад",
+                    callback_data="view_users_stats"
+                )
+            ],
+        ]
+    )
+
+    await callback.message.edit_text(text, reply_markup=keyboard)

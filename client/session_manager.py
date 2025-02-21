@@ -7,6 +7,7 @@ from telethon import TelegramClient
 import json
 from random import shuffle
 
+
 class SessionManager:
     def __init__(self, sessions_dir: str = "sessions"):
         self.sessions_dir = sessions_dir
@@ -48,7 +49,7 @@ class SessionManager:
                     return client
                 else:
                     await client.disconnect()
-                    self.active_sessions.remove(session_name)
+                    self.active_sessions.remove(client.session.filename)
                     self.logger.warning(f"Сессия {session_name} не авторизована")
 
         self.logger.warning("Все сессии заняты")

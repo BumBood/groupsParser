@@ -87,6 +87,16 @@ class Database:
         """Получает всех администраторов"""
         with self.get_session() as session:
             return session.query(User).filter(User.is_admin).all()
+    
+    def update_user_activity(self, user_id: int, is_active: bool) -> User:
+        """Обновляет статус активности пользователя"""
+        with self.get_session() as session:
+            user = session.query(User).filter(User.user_id == user_id).first()
+            if user:
+                user.is_active = is_active
+                session.commit()
+                session.refresh(user)
+            return user
 
     def create_referral_link(self, code: str) -> ReferralLink:
         """Создает новую реферальную ссылку"""
@@ -186,6 +196,8 @@ class Database:
         """Получает все платежи"""
         with self.get_session() as session:
             return session.query(PaymentHistory).all()
+    
+    
 
     def __del__(self):
         """Закрываем соединение при удалении объекта"""

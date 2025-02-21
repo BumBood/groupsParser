@@ -19,10 +19,7 @@ async def notify_admins(bot: Bot, message: str):
 
 
 async def add_balance_with_notification(user_id: int, amount: int, bot: Bot):
-    user = db.get_user(user_id)
-    balance = user.balance + amount
-    
-    db.update_balance(user_id, balance)
+    db.update_balance(user_id, amount)
     db.make_payment(user_id, amount)
     
     logging.info(f"Пользователь {user_id} пополнил баланс на {amount}")

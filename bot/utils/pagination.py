@@ -13,6 +13,7 @@ class Paginator:
         items_per_page: int,
         callback_prefix: str,
         item_callback: Callable[[T], tuple[str, str]],
+        return_callback: str,
     ):
         """
         Args:
@@ -26,6 +27,7 @@ class Paginator:
         self.callback_prefix = callback_prefix
         self.item_callback = item_callback
         self.total_pages = (len(items) + items_per_page - 1) // items_per_page
+        self.return_callback = return_callback
 
     def get_page_keyboard(self, page: int) -> InlineKeyboardMarkup:
         """Создает клавиатуру для указанной страницы"""
@@ -68,6 +70,6 @@ class Paginator:
             keyboard.append(nav_buttons)
 
         # Добавляем кнопку "Назад"
-        keyboard.append([InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_admin")])
+        keyboard.append([InlineKeyboardButton(text="◀️ Назад", callback_data=self.return_callback)])
 
         return InlineKeyboardMarkup(inline_keyboard=keyboard)
