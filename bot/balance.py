@@ -5,7 +5,7 @@ from aiogram.fsm.state import State, StatesGroup
 import time
 
 from bot.freekassa import FreeKassa
-from bot.funcs import add_balance_with_notification
+from bot.utils.funcs import add_balance_with_notification
 from config.parameters_manager import ParametersManager
 from db.database import Database
 

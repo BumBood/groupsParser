@@ -3,7 +3,7 @@ import logging
 from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from bot.funcs import notify_admins
+from bot.utils.funcs import notify_admins
 from db.database import Database
 
 from .keyboards import start_keyboard
@@ -16,7 +16,13 @@ db = Database()
 async def start_command(message: types.Message, state: FSMContext):
     args = message.text.split()[1] if len(message.text.split()) > 1 else None
 
-    user, is_new = db.get_or_create_user(message.from_user.id)
+    user, is_new = db.get_or_create_or_update_user(
+        user_id=message.from_user.id,
+        username=message.from_user.username,
+        full_name=message.from_user.first_name,
+        referrer_code=args,
+    )
+
     await state.clear()
     logging.info(f"Пользователь {message.from_user.id} /start")
 
@@ -24,25 +30,26 @@ async def start_command(message: types.Message, state: FSMContext):
 
     if args:
         # Получаем ссылку и увеличиваем счетчик кликов
-        ref_link = db.get_or_create_referral_link(args)
-        clicks = db.increment_referral_clicks(ref_link.code)
-
-        # Уведомляем админов о новом пользователе
-        await notify_admins(
-            message.bot,
-            f"Пользователь @username присоединился по ссылке с меткой: {args}\n"
-            f"Всего кликов по этой ссылке: {clicks}",
-        )
+        db.get_or_create_referral_link(args)
 
     if is_new:
         # Уведомляем админов о новом пользователе
-        await notify_admins(
-            message.bot,
+        admin_message = (
             f"🆕 Новый пользователь!\n"
             f"ID: <code>{message.from_user.id}</code>\n"
             f"Имя: {message.from_user.first_name}\n"
-            f"Username: @{message.from_user.username}",
+            f"Username: @{message.from_user.username}"
         )
+
+        if args:
+            # Получаем статистику внутри одной сессии
+            stats = db.get_link_statistics(args)
+            if stats:
+                admin_message += (
+                    f"\nМетка: {args}, всего кликов: {stats['users_count']}"
+                )
+
+        await notify_admins(message.bot, admin_message)
 
     if user.is_admin:
         keyboard.inline_keyboard.append(

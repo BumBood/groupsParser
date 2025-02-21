@@ -3,7 +3,7 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from dotenv import load_dotenv
-from bot.funcs import notify_admins
+from bot.utils.funcs import notify_admins
 from bot.start import router as start_router
 from bot.parse_post import router as post_router
 from config.parameters_manager import ParametersManager
