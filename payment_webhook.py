@@ -16,7 +16,10 @@ freekassa = FreeKassa(
     secret_word_2=str(ParametersManager.get_parameter("secret_word_2")),
 )
 
-
+bot = Bot(
+    token=ParametersManager.get_parameter("bot_token"),
+    default=DefaultBotProperties(parse_mode="HTML"),
+)
 
 
 @app.route("/payment/notification", methods=["POST"])
@@ -36,11 +39,7 @@ async def payment_notification():
             return jsonify({"error": "Invalid signature"}), 400
 
         user_id = int(order_id.split("_")[0])
-        with Bot(
-            token=ParametersManager.get_parameter("bot_token"),
-            default=DefaultBotProperties(parse_mode="HTML"),
-            ) as bot:
-            await add_balance_with_notification(user_id, float(amount), bot)
+        await add_balance_with_notification(user_id, float(amount), bot)
 
         return "YES", 200
 
