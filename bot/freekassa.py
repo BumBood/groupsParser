@@ -37,4 +37,10 @@ class FreeKassa:
         expected_sign = hashlib.md5(
             f"{merchant_id}:{amount}:{self.secret_word_2}:{order_id}".encode()
         ).hexdigest()
-        return sign.lower() == expected_sign.lower()
+        
+        status = sign.lower() == expected_sign.lower()
+        
+        if not status:
+            logging.error(f"Неверная подпись: {sign} != {expected_sign}. Данные: {merchant_id}, {amount}, {order_id}")
+            
+        return status
