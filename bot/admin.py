@@ -59,7 +59,7 @@ async def admin_menu_base(message: types.Message, user_id: int):
                     ),
                     types.InlineKeyboardButton(
                         text="📤 Загрузить сессию", callback_data="upload_session"
-                    )
+                    ),
                 ],
                 # Управление пользователями и балансом
                 [
@@ -68,7 +68,7 @@ async def admin_menu_base(message: types.Message, user_id: int):
                     ),
                     types.InlineKeyboardButton(
                         text="💰 Изменить баланс", callback_data="edit_balance"
-                    )
+                    ),
                 ],
                 # Управление администраторами и параметрами
                 [
@@ -77,7 +77,7 @@ async def admin_menu_base(message: types.Message, user_id: int):
                     ),
                     types.InlineKeyboardButton(
                         text="📝 Изменить параметры", callback_data="edit_params"
-                    )
+                    ),
                 ],
                 # Статистика и отчеты
                 [
@@ -86,7 +86,7 @@ async def admin_menu_base(message: types.Message, user_id: int):
                     ),
                     types.InlineKeyboardButton(
                         text="💸 История пополнений", callback_data="export_payments"
-                    )
+                    ),
                 ],
                 # Коммуникация и система
                 [
@@ -95,7 +95,7 @@ async def admin_menu_base(message: types.Message, user_id: int):
                     ),
                     types.InlineKeyboardButton(
                         text="🔄 Перезагрузка", callback_data="reboot_server"
-                    )
+                    ),
                 ],
             ]
         )
@@ -1176,6 +1176,46 @@ async def show_users_list(callback: types.CallbackQuery):
     await callback.message.edit_text(title, reply_markup=paginator.get_page_keyboard(0))
 
 
+@router.callback_query(F.data.startswith("users_page_"))
+async def handle_users_page(callback: types.CallbackQuery):
+    if not db.get_user(callback.from_user.id).is_admin:
+        return
+
+    page = int(callback.data.split("_")[-1])
+
+    # Определяем, какой список пользователей нужно показать
+    # Получаем последний callback_data из истории сообщения
+    message_text = callback.message.text
+    users = db.get_all_users()
+
+    if message_text.startswith("👑"):  # Список администраторов
+        users = [u for u in users if u.is_admin]
+        title = "👑 Список администраторов"
+    elif message_text.startswith("💰"):  # Пользователи с балансом
+        users = [u for u in users if u.balance > 0]
+        title = "💰 Пользователи с балансом"
+    else:  # Все пользователи
+        title = "📋 Все пользователи"
+
+    def user_callback(user) -> tuple[str, str]:
+        return (
+            f"{'👑 ' if user.is_admin else ''}{user.username or user.full_name or user.user_id} ({user.balance}₽)",
+            f"user_profile_{user.user_id}",
+        )
+
+    paginator = Paginator(
+        items=users,
+        items_per_page=10,
+        callback_prefix="users",
+        item_callback=user_callback,
+        return_callback="view_users_stats",
+    )
+
+    await callback.message.edit_text(
+        title, reply_markup=paginator.get_page_keyboard(page)
+    )
+
+
 @router.callback_query(F.data.startswith("user_profile_"))
 async def show_user_profile(callback: types.CallbackQuery):
     if not db.get_user(callback.from_user.id).is_admin:
@@ -1234,6 +1274,7 @@ async def request_new_balance(callback: types.CallbackQuery, state: FSMContext):
 
     if not user:
         await callback.answer("Пользователь не найден")
+        await state.clear()
         return
 
     await state.update_data(target_user_id=user_id)
