@@ -642,6 +642,8 @@ async def reboot_server(callback: types.CallbackQuery, state: FSMContext):
 
     logger.info("Выполняется команда перезагрузки сервера")
     # Перезагружаем сервер
+    os.system("sudo systemctl stop telegram-bot.service")
+    os.system("sudo systemctl stop payment-webhook.service")
     os.system("sudo /sbin/reboot")  # Для Linux
     # Альтернатива для Windows: os.system("shutdown /r /t 1")
 
