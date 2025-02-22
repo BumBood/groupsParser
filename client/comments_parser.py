@@ -102,14 +102,33 @@ class CommentParser:
         """Сохраняет DataFrames в Excel файл на разные листы"""
         self.logger.info(f"Сохранение данных в файл: {output_file}")
         try:
-            # Удаляем дубликаты по ID отправителя в таблице Пользователи
             if "Пользователи" in df_dict:
                 df_dict["Пользователи"] = df_dict["Пользователи"].drop_duplicates(
                     subset=["ID отправителя"], keep="first"
                 )
-                # Сортируем пользователей по последней активности
+
+                # Создаем функцию для определения приоритета статуса
+                def get_status_priority(status):
+                    if status == "В сети":
+                        return 0
+                    elif status == "Недавно":
+                        return 1
+                    return 2  # для всех дат
+
+                # Добавляем временный столбец с приоритетами
+                df_dict["Пользователи"]["status_priority"] = df_dict["Пользователи"][
+                    "Последняя активность"
+                ].apply(get_status_priority)
+
+                # Сортируем сначала по приоритету статуса, затем по времени активности
                 df_dict["Пользователи"] = df_dict["Пользователи"].sort_values(
-                    by="Последняя активность", ascending=True
+                    by=["status_priority", "Последняя активность"],
+                    ascending=[True, True],
+                )
+
+                # Удаляем временный столбец
+                df_dict["Пользователи"] = df_dict["Пользователи"].drop(
+                    columns=["status_priority"]
                 )
 
             # Создаем Excel writer
