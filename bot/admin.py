@@ -52,54 +52,49 @@ async def admin_menu_base(message: types.Message, user_id: int):
         logger.info(f"Администратор {user_id} открыл админ-панель")
         keyboard = types.InlineKeyboardMarkup(
             inline_keyboard=[
-                [
-                    types.InlineKeyboardButton(
-                        text="📝 Изменить параметры", callback_data="edit_params"
-                    )
-                ],
+                # Управление сессиями
                 [
                     types.InlineKeyboardButton(
                         text="📱 Просмотр сессий", callback_data="view_sessions"
-                    )
-                ],
-                [
+                    ),
                     types.InlineKeyboardButton(
                         text="📤 Загрузить сессию", callback_data="upload_session"
                     )
                 ],
+                # Управление пользователями и балансом
                 [
+                    types.InlineKeyboardButton(
+                        text="👥 Пользователи", callback_data="view_users_stats"
+                    ),
                     types.InlineKeyboardButton(
                         text="💰 Изменить баланс", callback_data="edit_balance"
                     )
                 ],
+                # Управление администраторами и параметрами
                 [
                     types.InlineKeyboardButton(
                         text="👑 Добавить админа", callback_data="add_admin"
-                    )
-                ],
-                [
+                    ),
                     types.InlineKeyboardButton(
-                        text="🔄 Перезагрузить сервер", callback_data="reboot_server"
+                        text="📝 Изменить параметры", callback_data="edit_params"
                     )
                 ],
-                [
-                    types.InlineKeyboardButton(
-                        text="📨 Рассылка", callback_data="broadcast"
-                    )
-                ],
+                # Статистика и отчеты
                 [
                     types.InlineKeyboardButton(
                         text="📊 Источники", callback_data="view_codes"
+                    ),
+                    types.InlineKeyboardButton(
+                        text="💸 История пополнений", callback_data="export_payments"
                     )
                 ],
+                # Коммуникация и система
                 [
                     types.InlineKeyboardButton(
-                        text="📊 История пополнений", callback_data="export_payments"
-                    )
-                ],
-                [
+                        text="📨 Рассылка", callback_data="broadcast"
+                    ),
                     types.InlineKeyboardButton(
-                        text="👥 Пользователи", callback_data="view_users_stats"
+                        text="🔄 Перезагрузка", callback_data="reboot_server"
                     )
                 ],
             ]

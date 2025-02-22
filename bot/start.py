@@ -67,7 +67,32 @@ async def start_command(message: types.Message, state: FSMContext):
         parse_mode="HTML",
     )
 
+
 @router.callback_query(F.data == "support")
 async def support_callback(callback: types.CallbackQuery):
-    await callback.message.answer(f"Ссылка на поддержку: {ParametersManager.get_parameter('support_link')}")
+    await callback.message.answer(
+        f"Ссылка на поддержку: {ParametersManager.get_parameter('support_link')}"
+    )
 
+
+@router.callback_query(F.data == "back_to_menu")
+async def back_to_menu(callback: types.CallbackQuery, state: FSMContext):
+    await state.clear()
+
+    user = db.get_user(callback.from_user.id)
+    keyboard = copy.deepcopy(start_keyboard)
+
+    if user.is_admin:
+        keyboard.inline_keyboard.append(
+            [
+                types.InlineKeyboardButton(
+                    text="👑 Админка", callback_data="back_to_admin"
+                )
+            ]
+        )
+
+    await callback.message.answer(
+        text=f"Привет, {callback.from_user.first_name}!\n\nВаш баланс: {user.balance} ₽\nВаш ID: <code>{callback.from_user.id}</code>",
+        reply_markup=keyboard,
+        parse_mode="HTML",
+    )

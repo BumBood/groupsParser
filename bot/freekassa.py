@@ -13,13 +13,13 @@ class FreeKassa:
         self.secret_word_2 = secret_word_2
 
 
-    def generate_payment_url(self, amount: float, order_id: str, email: str) -> str:
+    def generate_payment_url(self, amount: float, order_id: str) -> str:
         """Генерирует ссылку на форму оплаты через SCI"""
         sign = hashlib.md5(
             f"{self.shop_id}:{amount}:{self.secret_word_1}:RUB:{order_id}".encode()
         ).hexdigest()
 
-        link = f"https://pay.freekassa.com/?m={self.shop_id}&oa={amount}&currency=RUB&o={order_id}&s={sign}&em={email}"
+        link = f"https://pay.fk.money/?m={self.shop_id}&oa={amount}&currency=RUB&o={order_id}&s={sign}"
         logging.debug(f"Ссылка на оплату: {link}")
         
         if requests.get(link).status_code != 200:

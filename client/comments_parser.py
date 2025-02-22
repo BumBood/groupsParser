@@ -102,6 +102,16 @@ class CommentParser:
         """Сохраняет DataFrames в Excel файл на разные листы"""
         self.logger.info(f"Сохранение данных в файл: {output_file}")
         try:
+            # Удаляем дубликаты по ID отправителя в таблице Пользователи
+            if "Пользователи" in df_dict:
+                df_dict["Пользователи"] = df_dict["Пользователи"].drop_duplicates(
+                    subset=["ID отправителя"], keep="first"
+                )
+                # Сортируем пользователей по последней активности
+                df_dict["Пользователи"] = df_dict["Пользователи"].sort_values(
+                    by="Последняя активность", ascending=True
+                )
+
             # Создаем Excel writer
             with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
                 # Сохраняем каждый DataFrame на отдельный лист
@@ -113,12 +123,6 @@ class CommentParser:
 
                     # Подгоняем ширину каждой колонки под максимальную длину содержимого
                     for idx, col in enumerate(df.columns):
-                        # Сортируем пользователей по последней активности если это лист "Пользователи"
-                        if sheet_name == "Пользователи":
-                            df = df.sort_values(
-                                by="Последняя активность", ascending=False
-                            )
-
                         # Получаем максимальную длину в колонке
                         max_length = max(
                             df[col].astype(str).apply(len).max(), len(str(col))

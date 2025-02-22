@@ -260,6 +260,15 @@ async def process_parsing(
             await callback.message.answer_document(
                 types.FSInputFile(file_path, filename="comments.xlsx"),
                 caption="✅ Парсинг завершен!",
+                reply_markup=types.InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [
+                            types.InlineKeyboardButton(
+                                text="◀️ Назад в меню", callback_data="back_to_menu"
+                            )
+                        ]
+                    ]
+                ),
             )
 
         # Списываем средства, если необходимо
@@ -279,7 +288,15 @@ async def process_parsing(
             f"Ошибка при парсинге для пользователя {callback.from_user.id}: {str(e)}",
             exc_info=True,
         )
-        await callback.message.edit_text(f"❌ Ошибка при парсинге: {str(e)}")
+        await callback.message.edit_text(f"❌ Ошибка при парсинге: {str(e)}", reply_markup=types.InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [
+                            types.InlineKeyboardButton(
+                                text="◀️ Назад в меню", callback_data="back_to_menu"
+                            )
+                        ]
+                    ]
+        ))
     finally:
         # Удаляем файл после отправки
         if os.path.exists(file_path):

@@ -7,7 +7,6 @@ from bot.utils.funcs import notify_admins
 from bot.start import router as start_router
 from bot.parse_post import router as post_router
 from config.parameters_manager import ParametersManager
-import os
 from bot.admin import router as admin_router
 from bot.balance import router as balance_router
 
@@ -56,5 +55,5 @@ class TelegramBot:
 
 if __name__ == "__main__":
     load_dotenv()  # загружаем переменные из .env
-    bot = TelegramBot(os.getenv("BOT_TOKEN"))
+    bot = TelegramBot(ParametersManager.get_parameter("bot_token"))
     asyncio.run(bot.start())
