@@ -19,7 +19,7 @@ class FreeKassa:
             f"{self.shop_id}:{amount}:{self.secret_word_1}:RUB:{order_id}".encode()
         ).hexdigest()
 
-        link = f"https://pay.fk.money/?m={self.shop_id}&oa={amount}&currency=RUB&o={order_id}&s={sign}&em={email}"
+        link = f"https://pay.freekassa.com/?m={self.shop_id}&oa={amount}&currency=RUB&o={order_id}&s={sign}&em={email}"
         logging.debug(f"Ссылка на оплату: {link}")
         
         if requests.get(link).status_code != 200:
