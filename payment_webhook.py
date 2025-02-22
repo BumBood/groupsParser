@@ -1,7 +1,5 @@
-from flask import Flask, request, jsonify
 import asyncio
-import nest_asyncio
-from concurrent.futures import ThreadPoolExecutor
+from flask import Flask, request, jsonify
 from bot.freekassa import FreeKassa
 from config.parameters_manager import ParametersManager
 from db.database import Database
@@ -13,10 +11,6 @@ import json
 
 app = Flask(__name__)
 db = Database()
-nest_asyncio.apply()
-executor = ThreadPoolExecutor(max_workers=1)
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
 
 # Настройка логирования
 logging.basicConfig(
@@ -26,6 +20,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+asyncio.new_event_loop()
 
 freekassa = FreeKassa(
     shop_id=int(ParametersManager.get_parameter("shop_id")),
@@ -39,12 +34,8 @@ bot = Bot(
 )
 
 
-def run_async(coro):
-    return asyncio.run_coroutine_threadsafe(coro, loop).result()
-
-
 @app.route("/payment/notification", methods=["POST"])
-def payment_notification():
+async def payment_notification():
     try:
         logging.info(f"Content-Type: {request.content_type}")
         logging.info(f"Form данные: {request.form}")
@@ -67,13 +58,11 @@ def payment_notification():
         user = db.get_user(user_id)
 
         if not all([merchant_id, amount, order_id, sign]):
-            run_async(
-                error_notify(
-                    bot,
-                    f"Произошла ошибка при обработке платежа. Обратитесь в поддержку: {ParametersManager.get_parameter('support_link')}",
-                    f"У пользователя {user_id} произошла ошибка при обработке платежа. Username: {user.username}, сумма: {amount}, order_id: {order_id}, sign: {sign}",
-                    user_id,
-                )
+            await error_notify(
+                bot,
+                f"Произошла ошибка при обработке платежа. Обратитесь в поддержку: {ParametersManager.get_parameter('support_link')}",
+                f"У пользователя {user_id} произошла ошибка при обработке платежа. Username: {user.username}, сумма: {amount}, order_id: {order_id}, sign: {sign}",
+                user_id,
             )
             logging.error(
                 f"Missing required parameters: {merchant_id}, {amount}, {order_id}, {sign}"
@@ -81,18 +70,16 @@ def payment_notification():
             return jsonify({"error": "Missing required parameters"}), 400
 
         if not freekassa.check_payment_signature(merchant_id, amount, order_id, sign):
-            run_async(
-                error_notify(
-                    bot,
-                    f"Произошла ошибка при обработке платежа. Обратитесь в поддержку: {ParametersManager.get_parameter('support_link')}",
-                    f"У пользователя {user_id} произошла ошибка при обработке платежа. Username: {user.username}, сумма: {amount}, order_id: {order_id}, sign: {sign}",
-                    user_id,
-                )
+            await error_notify(
+                bot,
+                f"Произошла ошибка при обработке платежа. Обратитесь в поддержку: {ParametersManager.get_parameter('support_link')}",
+                f"У пользователя {user_id} произошла ошибка при обработке платежа. Username: {user.username}, сумма: {amount}, order_id: {order_id}, sign: {sign}",
+                user_id,
             )
             logging.error(f"Invalid signature: {sign}")
             return jsonify({"error": "Invalid signature"}), 400
 
-        run_async(add_balance_with_notification(user_id, float(amount), bot))
+        await add_balance_with_notification(user_id, float(amount), bot)
 
         return "YES", 200
 
