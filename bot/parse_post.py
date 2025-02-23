@@ -77,6 +77,7 @@ async def process_post_link(message: types.Message, state: FSMContext):
                         ]
                     ]
                 ),
+                disable_web_page_preview=True,
             )
             await state.clear()
             return
@@ -96,67 +97,51 @@ async def process_post_link(message: types.Message, state: FSMContext):
             )
 
             text = (
-                f"В посте {comments_count} комментариев.\n"
+                f"Пост: {message.text}\n"
+                f"В посте {comments_count} комментариев.\n\n"
                 f"Варианты парсинга:\n"
                 f"1. Бесплатно первые {free_limit} комментариев\n"
-                f"2. Все комментарии за {parse_cost}₽\n"
-                f"Ваш баланс: {user.balance}₽"
+                f"2. Все комментарии за {parse_cost}₽"
             )
 
             buttons = [
                 [
                     types.InlineKeyboardButton(
-                        text=f"🆓 Первые {free_limit} комментариев",
+                        text=f"🆓 Первые {free_limit} комментариев (бесплатно)",
                         callback_data="parse_free_limit",
                     )
-                ]
+                ],
+                [
+                    types.InlineKeyboardButton(
+                        text=f"💰 Все {comments_count} комментариев за {parse_cost}₽",
+                        callback_data="start_parsing",
+                    )
+                ],
             ]
 
-            if user.balance >= parse_cost:
-                buttons.append(
-                    [
-                        types.InlineKeyboardButton(
-                            text=f"💰 Все за {parse_cost}₽",
-                            callback_data="start_parsing",
-                        )
-                    ]
-                )
-            else:
-                buttons.append(
-                    [
-                        types.InlineKeyboardButton(
-                            text="💰 Пополнить баланс", callback_data="deposit"
-                        )
-                    ]
-                )
-
-            if user.is_admin:
-                buttons.append(
-                    [
-                        types.InlineKeyboardButton(
-                            text="🔓 Парсить как админ", callback_data="start_parsing"
-                        )
-                    ]
-                )
-
             await new_message.edit_text(
-                text, reply_markup=types.InlineKeyboardMarkup(inline_keyboard=buttons)
+                text,
+                reply_markup=types.InlineKeyboardMarkup(inline_keyboard=buttons),
+                disable_web_page_preview=True,
             )
             return
         else:
             logger.info(f"Бесплатный парсинг для пользователя {message.from_user.id}")
             text = f"В посте {comments_count} комментариев.\nПарсинг бесплатный (лимит: {free_limit})."
 
-        keyboard = types.InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    types.InlineKeyboardButton(
-                        text="🚀 Начать парсинг", callback_data="start_parsing"
-                    )
+            keyboard = types.InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        types.InlineKeyboardButton(
+                            text="🚀 Начать парсинг", callback_data="start_parsing"
+                        )
+                    ]
                 ]
-            ]
-        )
-        await new_message.edit_text(text, reply_markup=keyboard)
+            )
+            await new_message.edit_text(
+                text, reply_markup=keyboard, disable_web_page_preview=True
+            )
+
     except Exception as e:
         logger.error(
             f"Ошибка при проверке поста для пользователя {message.from_user.id}: {str(e)}",
@@ -181,15 +166,37 @@ async def start_parsing(callback: types.CallbackQuery, state: FSMContext):
         await state.clear()
         return
 
+    # Проверяем баланс пользователя
+    user = db.get_user(callback.from_user.id)
+    parse_cost = ParametersManager.get_parameter("parse_comments_cost")
+
+    if user.balance < parse_cost:
+        needed_amount = parse_cost - user.balance
+        await callback.message.edit_text(
+            f"❌ Недостаточно средств на балансе\n\n"
+            f"Необходимо пополнить баланс на {needed_amount}₽",
+            reply_markup=types.InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        types.InlineKeyboardButton(
+                            text=f"💰 Пополнить баланс на {needed_amount}₽",
+                            callback_data=f"deposit_{needed_amount}",
+                        )
+                    ],
+                    [
+                        types.InlineKeyboardButton(
+                            text="◀️ Назад", callback_data="collect_comments"
+                        )
+                    ],
+                ]
+            ),
+        )
+        await state.clear()
+        return
+
     await callback.message.edit_text("⏳ Начинаю парсинг комментариев...")
-
-    # Создаем уникальное имя файла
     file_path = f"comments_{callback.from_user.id}.xlsx"
-
-    # Запускаем парсинг асинхронно
     asyncio.create_task(process_parsing(callback, post_link, file_path))
-
-    # Очищаем состояние сразу
     await state.clear()
 
 
@@ -248,7 +255,7 @@ async def process_parsing(
 
             if data is not None:
                 df_dict = data
-        
+
         # Сохраняем в Excel
         logger.debug(f"Сохранение результатов в файл: {file_path}")
         parser.save_to_excel(df_dict, file_path)
@@ -288,15 +295,18 @@ async def process_parsing(
             f"Ошибка при парсинге для пользователя {callback.from_user.id}: {str(e)}",
             exc_info=True,
         )
-        await callback.message.edit_text(f"❌ Ошибка при парсинге: {str(e)}", reply_markup=types.InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [
-                            types.InlineKeyboardButton(
-                                text="◀️ Назад в меню", callback_data="back_to_menu"
-                            )
-                        ]
+        await callback.message.edit_text(
+            f"❌ Ошибка при парсинге: {str(e)}",
+            reply_markup=types.InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        types.InlineKeyboardButton(
+                            text="◀️ Назад в меню", callback_data="back_to_menu"
+                        )
                     ]
-        ))
+                ]
+            ),
+        )
     finally:
         # Удаляем файл после отправки
         if os.path.exists(file_path):
