@@ -43,13 +43,13 @@ class TelegramBot:
             ParametersManager._load_config()
             self.logger.info("Параметры загружены")
             # Запускаем бота
-            # await notify_admins(self.bot, "Бот запущен")
+            await notify_admins(self.bot, "Бот запущен")
             await self.dp.start_polling(self.bot)
         except Exception as e:
             self.logger.error(f"Ошибка при запуске бота: {e}")
             raise
         finally:
-            # await notify_admins(self.bot, "Бот выключен")
+            await notify_admins(self.bot, "Бот выключен")
             await self.bot.session.close()
 
 
