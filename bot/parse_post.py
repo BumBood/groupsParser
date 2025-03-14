@@ -133,7 +133,7 @@ async def process_post_link(message: types.Message, state: FSMContext):
                 inline_keyboard=[
                     [
                         types.InlineKeyboardButton(
-                            text="🚀 Начать парсинг", callback_data="start_parsing"
+                            text="🚀 Начать парсинг", callback_data="parse_free_limit"
                         )
                     ]
                 ]
