@@ -20,3 +20,11 @@ balance_keyboard = InlineKeyboardMarkup(
         [InlineKeyboardButton(text="💰 Пополнить", callback_data="deposit")]
     ]
 )
+
+# Инлайн-клавиатура для выбора способа оплаты
+payment_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[   
+        [InlineKeyboardButton(text="💳 ЮKassa", callback_data="payment|yooKassa")],
+        [InlineKeyboardButton(text="💲 FreeKassa", callback_data="payment|freeKassa")]
+    ]
+)
