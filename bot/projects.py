@@ -362,16 +362,6 @@ async def toggle_project(callback: types.CallbackQuery, state: FSMContext):
                 if await monitoring_system.remove_chat_from_monitoring(chat.id):
                     stopped_count += 1
 
-            await callback.answer(
-                f"Проект остановлен. Отключен мониторинг {stopped_count} чатов.",
-                show_alert=True,
-            )
-    else:
-        status = "активирован" if updated_project.is_active else "остановлен"
-        await callback.answer(
-            f"Проект {status}, но система мониторинга недоступна.", show_alert=True
-        )
-
     # Обновляем сообщение
     status_text = "🟢 Активен" if updated_project.is_active else "🔴 Остановлен"
 
