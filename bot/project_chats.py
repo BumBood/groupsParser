@@ -481,11 +481,25 @@ async def add_multiple_chats_keywords(message: types.Message, state: FSMContext)
                 )
                 if monitor_success:
                     activated_chats += 1
-
+    
+    if len(added_chats) == 1:
+        added_russian = "чат"
+    elif len(added_chats) > 1 and len(added_chats) < 5:
+        added_russian = "чата"
+    else:
+        added_russian = "чатов"
+    
+    if len(failed_chats) == 1:
+        failed_russian = "чат"
+    elif len(failed_chats) > 1 and len(failed_chats) < 5:
+        failed_russian = "чата"
+    else:
+        failed_russian = "чатов"
+    
     # Формируем текст результата
-    result_text = f"✅ <b>Добавлено чатов:</b> {len(added_chats)}"
+    result_text = f"✅ Успешно добавлено {len(added_chats)} {added_russian}"
     if failed_chats:
-        result_text += f"\n❌ <b>Не удалось добавить:</b> {len(failed_chats)}"
+        result_text += f"\n❌ <b>Не удалось добавить:</b> {len(failed_chats)} {failed_russian}"
 
     if project.is_active and monitoring_system:
         result_text += (
@@ -493,9 +507,9 @@ async def add_multiple_chats_keywords(message: types.Message, state: FSMContext)
         )
 
     await message.answer(
-        f"{result_text}\n\n"
+        (f"{result_text}\n\n"
         f"Ключевые слова: {keywords or 'Все сообщения'}\n\n"
-        f"Вы можете просмотреть и редактировать добавленные чаты в списке чатов проекта.",
+        f"Вы можете просмотреть и редактировать добавленные чаты в списке чатов проекта."),
         reply_markup=project_manage_keyboard(project),
         parse_mode="HTML",
     )

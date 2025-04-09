@@ -10,7 +10,11 @@ from pathlib import Path
 import logging
 
 from db.database import Database
-from client.session_manager import SessionManager
+from client.session_manager import (
+    SessionManager,
+    HistorySessionManager,
+    RealTimeSessionManager,
+)
 from bot.utils.pagination import Paginator
 
 logger = logging.getLogger(__name__)
@@ -21,6 +25,7 @@ db = Database()
 
 class AdminSessionStates(StatesGroup):
     waiting_for_archive = State()
+    waiting_for_directory_choice = State()
 
 
 async def validate_sessions(sessions_dir: str) -> tuple[list, list]:
@@ -82,16 +87,52 @@ async def request_archive(callback: types.CallbackQuery, state: FSMContext):
         return
 
     logger.info(f"Администратор {callback.from_user.id} начал загрузку сессий")
-    await state.set_state(AdminSessionStates.waiting_for_archive)
-    await callback.message.edit_text(
-        "📤 Отправьте ZIP или RAR архив, содержащий пары файлов .session и .json\n"
-        "⚠️ Существующие сессии с такими же именами будут заменены"
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text="📁 History (парсинг истории)",
+                    callback_data="upload_to_history",
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="📁 Realtime (мониторинг в реальном времени)",
+                    callback_data="upload_to_realtime",
+                )
+            ],
+            [types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_admin")],
+        ]
     )
+    await callback.message.edit_text(
+        "📤 Выберите директорию для загрузки сессий:", reply_markup=keyboard
+    )
+    await state.set_state(AdminSessionStates.waiting_for_directory_choice)
+
+
+@router.callback_query(
+    AdminSessionStates.waiting_for_directory_choice, F.data.startswith("upload_to_")
+)
+async def handle_directory_choice(callback: types.CallbackQuery, state: FSMContext):
+    directory_type = callback.data.replace("upload_to_", "")
+    await state.update_data(target_directory=directory_type)
+
+    await callback.message.edit_text(
+        f"📤 Отправьте ZIP или RAR архив, содержащий пары файлов .session и .json\n"
+        f"⚠️ Существующие сессии с такими же именами будут заменены\n\n"
+        f"Выбрана директория: {'История' if directory_type == 'history' else 'Реальное время'}"
+    )
+    await state.set_state(AdminSessionStates.waiting_for_archive)
 
 
 @router.message(AdminSessionStates.waiting_for_archive, F.document)
 async def handle_archive(message: types.Message, state: FSMContext, bot: Bot):
-    logger.info(f"Получен архив с сессиями от администратора {message.from_user.id}")
+    user_data = await state.get_data()
+    target_directory = user_data.get("target_directory", "history")
+
+    logger.info(
+        f"Получен архив с сессиями от администратора {message.from_user.id} для директории {target_directory}"
+    )
 
     if not message.document.file_name.endswith((".zip", ".rar")):
         logger.warning(
@@ -134,8 +175,13 @@ async def handle_archive(message: types.Message, state: FSMContext, bot: Bot):
             await message.answer("❌ Не найдено валидных пар файлов session/json")
             return
 
+        # Определяем целевую директорию на основе выбора пользователя
+        if target_directory == "history":
+            sessions_dir = "client/sessions/history"
+        else:
+            sessions_dir = "client/sessions/realtime"
+
         # Создаем целевую директорию, если она не существует
-        sessions_dir = "client/sessions"
         os.makedirs(sessions_dir, exist_ok=True)
 
         # Копируем валидные файлы в целевую директорию
@@ -146,7 +192,7 @@ async def handle_archive(message: types.Message, state: FSMContext, bot: Bot):
             shutil.copy(f"{extract_dir}/{name}.json", f"{sessions_dir}/{name}.json")
 
         await message.answer(
-            f"✅ Успешно загружено {len(valid_pairs)} сессий:\n"
+            f"✅ Успешно загружено {len(valid_pairs)} сессий в директорию {target_directory}:\n"
             + "\n".join(f"• {name}" for name in valid_pairs)
         )
 
@@ -172,64 +218,120 @@ async def view_sessions(callback: types.CallbackQuery, state: FSMContext):
         )
         return
 
-    logger.info(f"Администратор {callback.from_user.id} запросил просмотр сессий")
-    session_manager = SessionManager("client/sessions")
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text="📁 History (парсинг истории)",
+                    callback_data="view_history_sessions",
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text="📁 Realtime (мониторинг в реальном времени)",
+                    callback_data="view_realtime_sessions",
+                )
+            ],
+            [types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_admin")],
+        ]
+    )
+
+    await callback.message.edit_text(
+        "📱 Выберите тип сессий для просмотра:", reply_markup=keyboard
+    )
+
+
+@router.callback_query(F.data.startswith("view_"))
+async def handle_view_sessions_type(callback: types.CallbackQuery, state: FSMContext):
+    if not db.get_user(callback.from_user.id).is_admin:
+        return
+
+    session_type = callback.data.replace("view_", "").replace("_sessions", "")
+    logger.info(
+        f"Администратор {callback.from_user.id} запросил просмотр сессий типа {session_type}"
+    )
+
+    # Выбираем директорию в зависимости от типа сессий
+    if session_type == "history":
+        session_manager = HistorySessionManager()
+    else:
+        session_manager = RealTimeSessionManager(db)
+
     sessions = session_manager.get_sessions_info()
 
     if not sessions:
-        logger.info("Сессии не найдены")
-        await callback.message.edit_text(
-            "📱 Сессии не найдены",
-            reply_markup=types.InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        types.InlineKeyboardButton(
-                            text="◀️ Назад", callback_data="back_to_admin"
-                        )
-                    ]
+        logger.info(f"Сессии типа {session_type} не найдены")
+        keyboard = types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text="◀️ Назад", callback_data="view_sessions"
+                    )
                 ]
-            ),
+            ]
+        )
+        await callback.message.edit_text(
+            f"📱 Сессии в директории {session_type} не найдены",
+            reply_markup=keyboard,
         )
         return
 
     def session_callback(session: dict) -> tuple[str, str]:
-        return f"+{session['phone']}", f"session_info_{session['session_name']}"
+        return (
+            f"+{session['phone']}",
+            f"session_info_{session_type}_{session['session_name']}",
+        )
 
     paginator = Paginator(
         items=sessions,
         items_per_page=4,
-        callback_prefix="sessions",
+        callback_prefix=f"{session_type}_sessions",
         item_callback=session_callback,
-        return_callback="back_to_admin",
+        return_callback="view_sessions",
     )
 
     await callback.message.edit_text(
-        "📱 Список сессий:", reply_markup=paginator.get_page_keyboard(0)
+        f"📱 Список сессий ({session_type}):",
+        reply_markup=paginator.get_page_keyboard(0),
     )
 
 
-@router.callback_query(F.data.startswith("sessions_page_"))
+@router.callback_query(
+    F.data.startswith("history_sessions_page_")
+    | F.data.startswith("realtime_sessions_page_")
+)
 async def handle_sessions_page(callback: types.CallbackQuery):
     if not db.get_user(callback.from_user.id).is_admin:
         return
 
-    page = int(callback.data.split("_")[-1])
-    session_manager = SessionManager("client/sessions")
+    parts = callback.data.split("_")
+    session_type = parts[0]  # history или realtime
+    page = int(parts[-1])
+
+    if session_type == "history":
+        session_manager = HistorySessionManager()
+    else:
+        session_manager = RealTimeSessionManager(db)
+
     sessions = session_manager.get_sessions_info()
 
     def session_callback(session: dict) -> tuple[str, str]:
-        return f"+{session['phone']}", f"session_info_{session['session_name']}"
+        return (
+            f"+{session['phone']}",
+            f"session_info_{session_type}_{session['session_name']}",
+        )
 
     paginator = Paginator(
         items=sessions,
         items_per_page=4,
-        callback_prefix="sessions",
+        callback_prefix=f"{session_type}_sessions",
         item_callback=session_callback,
-        return_callback="back_to_admin",
+        return_callback="view_sessions",
     )
 
     await callback.message.edit_text(
-        "📱 Список сессий:", reply_markup=paginator.get_page_keyboard(page)
+        f"📱 Список сессий ({session_type}):",
+        reply_markup=paginator.get_page_keyboard(page),
     )
 
 
@@ -238,8 +340,16 @@ async def show_session_info(callback: types.CallbackQuery):
     if not db.get_user(callback.from_user.id).is_admin:
         return
 
-    session_name = callback.data.replace("session_info_", "")
-    session_manager = SessionManager("client/sessions")
+    # Извлекаем тип сессии и имя сессии
+    parts = callback.data.replace("session_info_", "").split("_", 1)
+    session_type = parts[0]  # history или realtime
+    session_name = parts[1]
+
+    if session_type == "history":
+        session_manager = HistorySessionManager()
+    else:
+        session_manager = RealTimeSessionManager(db)
+
     sessions = session_manager.get_sessions_info()
 
     session = next((s for s in sessions if s["session_name"] == session_name), None)
@@ -252,7 +362,8 @@ async def show_session_info(callback: types.CallbackQuery):
         f"📞 Телефон: {session['phone']}\n"
         f"👤 Username: @{session['username']}\n"
         f"📝 Имя: {session['first_name']} {session['last_name']}\n"
-        f"🔑 Файл: {session['session_name']}"
+        f"🔑 Файл: {session['session_name']}\n"
+        f"📁 Директория: {session_type}"
     )
 
     keyboard = types.InlineKeyboardMarkup(
@@ -260,12 +371,12 @@ async def show_session_info(callback: types.CallbackQuery):
             [
                 types.InlineKeyboardButton(
                     text="🗑 Удалить сессию",
-                    callback_data=f"delete_session_{session_name}",
+                    callback_data=f"delete_session_{session_type}_{session_name}",
                 )
             ],
             [
                 types.InlineKeyboardButton(
-                    text="◀️ К списку", callback_data="view_sessions"
+                    text="◀️ К списку", callback_data=f"view_{session_type}_sessions"
                 )
             ],
         ]
@@ -279,8 +390,15 @@ async def delete_session(callback: types.CallbackQuery):
     if not db.get_user(callback.from_user.id).is_admin:
         return
 
-    session_name = callback.data.replace("delete_session_", "")
-    session_path = f"client/sessions/{session_name}"
+    # Извлекаем тип сессии и имя сессии
+    parts = callback.data.replace("delete_session_", "").split("_", 1)
+    session_type = parts[0]  # history или realtime
+    session_name = parts[1]
+
+    if session_type == "history":
+        session_path = f"client/sessions/history/{session_name}"
+    else:
+        session_path = f"client/sessions/realtime/{session_name}"
 
     try:
         # Удаляем файлы сессии
@@ -290,7 +408,19 @@ async def delete_session(callback: types.CallbackQuery):
             os.remove(f"{session_path}.json")
 
         await callback.answer("✅ Сессия успешно удалена")
-        await view_sessions(callback, None)
+        await callback.message.edit_text(
+            f"✅ Сессия {session_name} успешно удалена из директории {session_type}",
+            reply_markup=types.InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        types.InlineKeyboardButton(
+                            text="◀️ К списку сессий",
+                            callback_data=f"view_{session_type}_sessions",
+                        )
+                    ]
+                ]
+            ),
+        )
 
     except Exception as e:
         logger.error(f"Ошибка при удалении сессии {session_name}: {e}")

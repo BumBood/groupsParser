@@ -46,13 +46,19 @@ async def admin_menu_base(message: types.Message, user_id: int):
                         text="🔄 Перезагрузка", callback_data="reboot_server"
                     ),
                 ],
+                # Управление сессиями
+                [
+                    types.InlineKeyboardButton(
+                        text="📱 Просмотр сессий", callback_data="view_sessions"
+                    ),
+                    types.InlineKeyboardButton(
+                        text="⬆️ Загрузить сессии", callback_data="upload_session"
+                    ),
+                ],
                 # Перенос задач между пользователями
                 [
                     types.InlineKeyboardButton(
                         text="🔀 Перенос задач", callback_data="transfer_tasks"
-                    ),
-                    types.InlineKeyboardButton(
-                        text="⬆️ Загрузить сессии", callback_data="upload_session"
                     ),
                 ],
                 # Управление тарифами

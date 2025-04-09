@@ -140,6 +140,37 @@ class RealTimeSessionManager:
         # Бот для отправки уведомлений
         self.bot = None
 
+    def get_sessions_info(self) -> list:
+        """Возвращает информацию о всех доступных сессиях"""
+        sessions_info = []
+        session_files = glob.glob(os.path.join(self.sessions_dir, "*.session"))
+
+        for session_file in session_files:
+            session_name = os.path.splitext(os.path.basename(session_file))[0]
+            json_path = os.path.join(self.sessions_dir, f"{session_name}.json")
+
+            if os.path.exists(json_path):
+                try:
+                    with open(json_path) as f:
+                        session_data = json.load(f)
+
+                    sessions_info.append(
+                        {
+                            "session_name": session_name,
+                            "phone": session_data.get("phone", "Неизвестно"),
+                            "username": session_data.get("username", "Неизвестно"),
+                            "first_name": session_data.get("first_name", ""),
+                            "last_name": session_data.get("last_name", ""),
+                            "is_active": session_name in self.active_clients,
+                        }
+                    )
+                except json.JSONDecodeError:
+                    self.logger.error(
+                        f"Ошибка чтения JSON файла для сессии {session_name}"
+                    )
+
+        return sessions_info
+
     async def initialize(self, message_processor, bot=None):
         """Инициализация менеджера сессий реального времени"""
         self.message_processor = message_processor

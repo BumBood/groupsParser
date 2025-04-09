@@ -125,9 +125,9 @@ async def create_project_description(message: types.Message, state: FSMContext):
         await state.clear()
         return
 
-    # Создаем проект в БД (по умолчанию проект активный)
+    # Создаем проект в БД (по умолчанию проект неактивный)
     project = db.create_project(
-        user_id=message.from_user.id, name=name, description=description, is_active=True
+        user_id=message.from_user.id, name=name, description=description, is_active=False
     )
 
     await state.clear()
@@ -137,7 +137,7 @@ async def create_project_description(message: types.Message, state: FSMContext):
         "✅ <b>Проект успешно создан!</b>\n\n"
         f"Название: <b>{project.name}</b>\n"
         f"Описание: {project.description or 'Не указано'}\n"
-        f"Статус: 🟢 Активен\n\n"
+        f"Статус: 🔴 Неактивен\n\n"
         f"Теперь вы можете добавить чаты для мониторинга.",
         reply_markup=project_manage_keyboard(project),
         parse_mode="HTML",
