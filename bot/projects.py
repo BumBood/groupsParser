@@ -338,21 +338,6 @@ async def toggle_project(callback: types.CallbackQuery, state: FSMContext):
                         if monitor_success:
                             activated_count += 1
 
-                if activated_count > 0:
-                    await callback.answer(
-                        f"Проект активирован. Запущен мониторинг {activated_count} из {len(active_chats)} чатов.",
-                        show_alert=True,
-                    )
-                else:
-                    await callback.answer(
-                        "Проект активирован, но не удалось запустить мониторинг чатов.",
-                        show_alert=True,
-                    )
-            else:
-                await callback.answer(
-                    "Проект активирован, но нет активных чатов для мониторинга.",
-                    show_alert=True,
-                )
 
         # Если проект деактивирован - останавливаем мониторинг
         else:
