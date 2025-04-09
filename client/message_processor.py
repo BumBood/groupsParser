@@ -228,33 +228,48 @@ class MessageProcessor:
         # Форматируем текст сообщения
         message_text = message.text or message.message or ""
 
-        # Выделяем ключевые слова вертикальными линиями, если они есть
+        # Переменная для хранения части текста с ключевым словом
+        keyword_text_snippet = ""
+        # Выделяем только первое найденное ключевое слово, если они есть
         matching_keywords = []
         if keywords and message_text:
             keyword_list = [k.strip().lower() for k in keywords.split(",") if k.strip()]
             if keyword_list:
                 message_text_lower = message_text.lower()
+                # Ищем первое вхождение любого ключевого слова
+                first_keyword = None
+                first_pos = -1
+
                 for keyword in keyword_list:
-                    if keyword in message_text_lower:
-                        matching_keywords.append(keyword)
-                        # Находим все позиции ключевого слова в тексте
-                        start_pos = 0
-                        while True:
-                            pos = message_text_lower.find(keyword, start_pos)
-                            if pos == -1:
-                                break
+                    pos = message_text_lower.find(keyword)
+                    if pos != -1 and (first_pos == -1 or pos < first_pos):
+                        first_pos = pos
+                        first_keyword = keyword
 
-                            # Получаем оригинальное написание ключевого слова из текста
-                            original_keyword = message_text[pos : pos + len(keyword)]
+                if first_keyword:
+                    matching_keywords.append(first_keyword)
+                    # Получаем оригинальное написание ключевого слова из текста
+                    original_keyword = message_text[
+                        first_pos : first_pos + len(first_keyword)
+                    ]
 
-                            # Заменяем ключевое слово на версию с вертикальными линиями
-                            message_text = f"{message_text[:pos]}|{original_keyword}|{message_text[pos + len(keyword):]}"
-                            message_text_lower = f"{message_text_lower[:pos]}|{keyword}|{message_text_lower[pos + len(keyword):]}"
+                    # Определяем конец фрагмента (ключевое слово + 30 символов после него)
+                    end_pos = min(
+                        first_pos + len(first_keyword) + 30, len(message_text)
+                    )
 
-                            # Обновляем позицию для продолжения поиска
-                            start_pos = (
-                                pos + len(keyword) + 2
-                            )  # +2 для учета добавленных символов |
+                    # Формируем фрагмент текста
+                    prefix = "..." if first_pos > 0 else ""
+                    suffix = "..." if end_pos < len(message_text) else ""
+
+                    # Создаем выделенный фрагмент текста для отображения
+                    keyword_text_snippet = f"{prefix}<code>{original_keyword}{message_text[first_pos + len(first_keyword):end_pos]}</code>{suffix}"
+
+        # Если ключевые слова не найдены, но есть текст, берем первые 30 символов
+        if not keyword_text_snippet and message_text:
+            end_pos = min(30, len(message_text))
+            suffix = "..." if end_pos < len(message_text) else ""
+            keyword_text_snippet = f"<code>{message_text[:end_pos]}</code>{suffix}"
 
         # Создаем ссылку на сообщение, если возможно
         message_link = ""
@@ -277,13 +292,11 @@ class MessageProcessor:
 
         if sender_id:
             # Создаем ссылку на пользователя, используя его ID если нет username
-            user_link = f"tg://user?id={sender_id}"
-            formatted_message += (
-                f"Написать: ✍️ <a href='{user_link}'>сообщение автору</a>\n"
-            )
+            user_link = f"tg://user?id={int(sender_id)}"
+            formatted_message += f'Написать: ✍️ <a href="{user_link}">отправителю</a>\n'
 
-        if message_text:
-            formatted_message += f"\nЧасть текста с ключом:\n{message_text}"
+        if keyword_text_snippet:
+            formatted_message += f"\nЧасть текста с ключом:\n{keyword_text_snippet}"
 
         return formatted_message
 

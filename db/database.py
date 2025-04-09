@@ -614,7 +614,7 @@ class Database:
             # Получаем количество проектов пользователя
             projects_count = (
                 session.query(Project)
-                .filter(Project.user_id == user_id, Project.is_active == True)
+                .filter(Project.user_id == user_id)
                 .count()
             )
 
@@ -626,8 +626,7 @@ class Database:
                 chats_count += (
                     session.query(ProjectChat)
                     .filter(
-                        ProjectChat.project_id == project.id,
-                        ProjectChat.is_active == True,
+                        ProjectChat.project_id == project.id
                     )
                     .count()
                 )
