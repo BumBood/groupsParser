@@ -83,7 +83,7 @@ class Database:
                 user_tariff = UserTariff(
                     user_id=user_id,
                     tariff_plan_id=zero_tariff.id,
-                    end_date=datetime.now() + timedelta(days=36500),  # ~100 лет
+                    end_date=datetime.now() + timedelta(days=5),  # ~100 лет
                     is_active=True,
                 )
                 session.add(user_tariff)
@@ -318,6 +318,7 @@ class Database:
         chat_title: str = None,
         chat_type: str = "group",
         keywords: str = None,
+        is_active: bool = True,
     ) -> ProjectChat:
         """Добавляет чат в проект"""
         with self.get_session() as session:
@@ -339,6 +340,7 @@ class Database:
                 chat_title=chat_title,
                 chat_type=chat_type,
                 keywords=keywords,
+                is_active=is_active,
             )
             session.add(chat)
             session.commit()

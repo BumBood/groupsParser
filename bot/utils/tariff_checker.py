@@ -191,3 +191,81 @@ class TariffChecker:
             return False
 
         return True
+
+    @staticmethod
+    def can_create_project(user_id: int, db: Database) -> tuple[bool, str]:
+        """
+        Проверяет, может ли пользователь создать новый проект согласно его тарифу
+
+        Args:
+            user_id: ID пользователя
+            db: Экземпляр базы данных
+
+        Returns:
+            Кортеж (может_создать: bool, сообщение: str)
+        """
+        # Проверяем активность тарифа
+        if not TariffChecker.is_tariff_active(user_id, db):
+            return False, "Ваш тариф неактивен или истёк"
+
+        # Получаем информацию о тарифе пользователя
+        tariff_info = db.get_user_tariff_info(user_id)
+
+        if not tariff_info.get("has_tariff", False):
+            return False, "У вас нет активного тарифа"
+
+        # Получаем количество активных проектов
+        current_projects = tariff_info.get("current_projects", 0)
+        max_projects = tariff_info.get("max_projects", 0)
+
+        # Проверяем, не превышен ли лимит проектов
+        if current_projects >= max_projects:
+            return False, f"Достигнут лимит проектов ({max_projects}) для вашего тарифа"
+
+        return True, "Можно создать проект"
+
+    @staticmethod
+    def can_add_chat_to_project(
+        user_id: int, project_id: int, db: Database
+    ) -> tuple[bool, str]:
+        """
+        Проверяет, может ли пользователь добавить новый чат в проект согласно его тарифу
+
+        Args:
+            user_id: ID пользователя
+            project_id: ID проекта
+            db: Экземпляр базы данных
+
+        Returns:
+            Кортеж (может_добавить: bool, сообщение: str)
+        """
+        # Проверяем активность тарифа
+        if not TariffChecker.is_tariff_active(user_id, db):
+            return False, "Ваш тариф неактивен или истёк"
+
+        # Получаем информацию о тарифе пользователя
+        tariff_info = db.get_user_tariff_info(user_id)
+
+        if not tariff_info.get("has_tariff", False):
+            return False, "У вас нет активного тарифа"
+
+        # Получаем максимальное количество чатов в проекте
+        max_chats_per_project = tariff_info.get("max_chats_per_project", 0)
+
+        # Получаем проект и проверяем, принадлежит ли он пользователю
+        project = db.get_project(project_id)
+        if not project or project.user_id != user_id:
+            return False, "Проект не найден или у вас нет к нему доступа"
+
+        # Получаем количество активных чатов в проекте
+        chats = db.get_project_chats(project_id, active_only=True)
+        current_chats = len(chats)
+
+        # Проверяем, не превышен ли лимит чатов в проекте
+        if current_chats >= max_chats_per_project:
+            return (
+                False,
+                f"Достигнут лимит чатов ({max_chats_per_project}) в проекте для вашего тарифа",
+            )
+
+        return True, "Можно добавить чат"

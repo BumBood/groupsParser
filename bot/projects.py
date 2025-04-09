@@ -13,6 +13,7 @@ from bot.projects_keyboards import (
     confirm_keyboard,
 )
 from bot.utils.states import ProjectStates
+from bot.utils.tariff_checker import TariffChecker
 
 router = Router(name="projects")
 db = Database()
@@ -109,6 +110,20 @@ async def create_project_description(message: types.Message, state: FSMContext):
     # Получаем данные из состояния
     data = await state.get_data()
     name = data.get("name")
+
+    # Проверяем ограничения тарифа перед созданием проекта
+    can_create, tariff_message = TariffChecker.can_create_project(
+        message.from_user.id, db
+    )
+    if not can_create:
+        await message.answer(
+            f"⚠️ <b>Невозможно создать проект:</b> {tariff_message}\n\n"
+            f"Для увеличения лимитов приобретите тариф выше.",
+            reply_markup=main_projects_keyboard(),
+            parse_mode="HTML",
+        )
+        await state.clear()
+        return
 
     # Создаем проект в БД (по умолчанию проект активный)
     project = db.create_project(

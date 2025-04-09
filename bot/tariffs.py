@@ -35,14 +35,14 @@ class TariffPurchaseStates(StatesGroup):
 @router.callback_query(F.data == "buy_tariff")
 async def show_available_tariffs(callback: CallbackQuery, state: FSMContext):
     """Показывает доступные тарифы для покупки"""
-    tariffs = db.get_all_tariff_plans(active_only=True)
+    tariffs = db.get_all_tariff_plans(active_only=True)[1:]
 
     if not tariffs:
         await callback.message.edit_text(
             "❌ В данный момент нет доступных тарифов для покупки.",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[
-                    [InlineKeyboardButton(text="🔙 Назад", callback_data="start")]
+                    [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")]
                 ]
             ),
         )
@@ -54,7 +54,7 @@ async def show_available_tariffs(callback: CallbackQuery, state: FSMContext):
             text=f"{tariff.name} - {tariff.price/100}₽/мес",
             callback_data=f"select_tariff_{tariff.id}",
         )
-    builder.button(text="🔙 Назад", callback_data="start")
+    builder.button(text="🔙 Назад", callback_data="back_to_menu")
     builder.adjust(1)
 
     text = "🎯 Доступные тарифы:\n\n"

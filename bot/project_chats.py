@@ -12,6 +12,7 @@ from bot.projects_keyboards import (
     confirm_keyboard,
 )
 from bot.utils.states import ChatStates
+from bot.utils.tariff_checker import TariffChecker
 
 router = Router(name="project_chats")
 db = Database()
@@ -180,6 +181,20 @@ async def add_chat_keywords(message: types.Message, state: FSMContext):
         await state.clear()
         return
 
+    # Проверяем ограничения тарифа перед добавлением чата
+    can_add, tariff_message = TariffChecker.can_add_chat_to_project(
+        message.from_user.id, project_id, db
+    )
+    if not can_add:
+        await message.answer(
+            f"⚠️ <b>Невозможно добавить чат:</b> {tariff_message}\n\n"
+            f"Для увеличения лимитов приобретите тариф выше.",
+            reply_markup=project_manage_keyboard(project),
+            parse_mode="HTML",
+        )
+        await state.clear()
+        return
+
     # Получаем мониторинговую систему из бота
     monitoring_system = message.bot.monitoring_system
 
@@ -230,7 +245,7 @@ async def add_chat_keywords(message: types.Message, state: FSMContext):
                     f"Чат: <b>{chat.chat_title}</b>\n"
                     f"Ключевые слова: {keywords or 'Все сообщения'}\n"
                     f"Статус: 🟢 Активен (мониторинг работает)",
-                    reply_markup=chat_manage_keyboard(chat, project_id),
+                    reply_markup=chat_manage_keyboard(chat),
                     parse_mode="HTML",
                 )
             else:
@@ -239,7 +254,7 @@ async def add_chat_keywords(message: types.Message, state: FSMContext):
                     f"Чат: <b>{chat.chat_title}</b>\n"
                     f"Ключевые слова: {keywords or 'Все сообщения'}\n"
                     f"Статус: 🟢 Активен (мониторинг не работает)",
-                    reply_markup=chat_manage_keyboard(chat, project_id),
+                    reply_markup=chat_manage_keyboard(chat),
                     parse_mode="HTML",
                 )
         else:
@@ -249,7 +264,7 @@ async def add_chat_keywords(message: types.Message, state: FSMContext):
                 f"Ключевые слова: {keywords or 'Все сообщения'}\n"
                 f"Статус: 🟢 Активен (не удалось вступить)\n\n"
                 f"Убедитесь, что бот имеет доступ к чату и правильно указан юзернейм/ссылка.",
-                reply_markup=chat_manage_keyboard(chat, project_id),
+                reply_markup=chat_manage_keyboard(chat),
                 parse_mode="HTML",
             )
     else:
@@ -264,7 +279,7 @@ async def add_chat_keywords(message: types.Message, state: FSMContext):
             f"Чат: <b>{chat.chat_title}</b>\n"
             f"Ключевые слова: {keywords or 'Все сообщения'}\n"
             f"Статус: {status_text}",
-            reply_markup=chat_manage_keyboard(chat, project_id),
+            reply_markup=chat_manage_keyboard(chat),
             parse_mode="HTML",
         )
 
@@ -370,6 +385,45 @@ async def add_multiple_chats_keywords(message: types.Message, state: FSMContext)
         )
         await state.clear()
         return
+
+    # Проверяем ограничения тарифа перед добавлением чатов
+    can_add, tariff_message = TariffChecker.can_add_chat_to_project(
+        message.from_user.id, project_id, db
+    )
+    if not can_add:
+        await message.answer(
+            f"⚠️ <b>Невозможно добавить чаты:</b> {tariff_message}\n\n"
+            f"Для увеличения лимитов приобретите тариф выше.",
+            reply_markup=project_manage_keyboard(project),
+            parse_mode="HTML",
+        )
+        await state.clear()
+        return
+
+    # Проверяем, сколько можно добавить чатов с учетом уже существующих и ограничений тарифа
+    tariff_info = db.get_user_tariff_info(message.from_user.id)
+    max_chats = tariff_info.get("max_chats_per_project", 0)
+    current_chats = len(db.get_project_chats(project_id, active_only=True))
+    remaining_slots = max(0, max_chats - current_chats)
+
+    # Если число чатов для добавления превышает оставшиеся слоты, уведомляем пользователя
+    if len(chats_data) > remaining_slots:
+        await message.answer(
+            f"⚠️ <b>Внимание:</b> Ваш тариф позволяет добавить только {remaining_slots} из {len(chats_data)} чатов.\n"
+            f"Будут добавлены только первые {remaining_slots}.\n\n"
+            f"Для увеличения лимита приобретите тариф выше.",
+            parse_mode="HTML",
+        )
+        # Оставляем только то количество чатов, которое можно добавить
+        if remaining_slots > 0:
+            chats_data = chats_data[:remaining_slots]
+        else:
+            await message.answer(
+                "❌ Невозможно добавить больше чатов с текущим тарифом.",
+                reply_markup=project_manage_keyboard(project),
+            )
+            await state.clear()
+            return
 
     # Получаем мониторинговую систему из бота
     monitoring_system = message.bot.monitoring_system
@@ -572,7 +626,7 @@ async def toggle_chat(callback: types.CallbackQuery, state: FSMContext):
             f"Статус: {chat_status}\n"
             f"Ключевые слова: {updated_chat.keywords or 'Все сообщения'}\n\n"
             f"Выберите действие:",
-            reply_markup=chat_manage_keyboard(updated_chat, project_id),
+            reply_markup=chat_manage_keyboard(updated_chat),
             parse_mode="HTML",
         )
     else:
@@ -657,7 +711,7 @@ async def edit_keywords_save(message: types.Message, state: FSMContext):
                     f"Чат: <b>{updated_chat.chat_title or updated_chat.chat_id}</b>\n"
                     f"Новые ключевые слова: {keywords or 'Все сообщения'}\n\n"
                     f"Мониторинг перезапущен с новыми параметрами.",
-                    reply_markup=chat_manage_keyboard(updated_chat, project_id),
+                    reply_markup=chat_manage_keyboard(updated_chat),
                     parse_mode="HTML",
                 )
             else:
@@ -666,7 +720,7 @@ async def edit_keywords_save(message: types.Message, state: FSMContext):
                     f"Чат: <b>{updated_chat.chat_title or updated_chat.chat_id}</b>\n"
                     f"Новые ключевые слова: {keywords or 'Все сообщения'}\n\n"
                     f"⚠️ Не удалось перезапустить мониторинг с новыми параметрами.",
-                    reply_markup=chat_manage_keyboard(updated_chat, project_id),
+                    reply_markup=chat_manage_keyboard(updated_chat),
                     parse_mode="HTML",
                 )
         else:
@@ -683,13 +737,13 @@ async def edit_keywords_save(message: types.Message, state: FSMContext):
                 f"Чат: <b>{updated_chat.chat_title or updated_chat.chat_id}</b>\n"
                 f"Новые ключевые слова: {keywords or 'Все сообщения'}\n\n"
                 f"{status_info}",
-                reply_markup=chat_manage_keyboard(updated_chat, project_id),
+                reply_markup=chat_manage_keyboard(updated_chat),
                 parse_mode="HTML",
             )
     else:
         await message.answer(
             "⚠️ <b>Ошибка:</b> Не удалось обновить ключевые слова.",
-            reply_markup=chat_manage_keyboard(chat, project_id),
+            reply_markup=chat_manage_keyboard(chat),
             parse_mode="HTML",
         )
 
