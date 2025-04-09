@@ -707,7 +707,7 @@ async def process_tariff_id(message: Message, state: FSMContext):
             reply_markup=InlineKeyboardBuilder()
             .button(
                 text="✅ Да",
-                callback_data=f"confirm_admin_tariff_{user_id}_{tariff_id}",
+                callback_data=f"confirmadmintariff_{user_id}_{tariff_id}",
             )
             .button(text="❌ Нет", callback_data="tariffs_menu")
             .as_markup(),
@@ -739,7 +739,7 @@ async def process_tariff_id(message: Message, state: FSMContext):
     )
 
 
-@router.callback_query(F.data.startswith("confirm_admin_tariff_"))
+@router.callback_query(F.data.startswith("confirmadmintariff_"))
 async def confirm_admin_tariff_assignment(callback: CallbackQuery):
     """Подтверждение назначения тарифа через админ-панель"""
     _, user_id, tariff_id = callback.data.split("_")
