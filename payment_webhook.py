@@ -54,38 +54,72 @@ async def payment_notification():
         order_id = data.get("MERCHANT_ORDER_ID")
         sign = data.get("SIGN")
 
-        user_id = int(order_id.split("_")[0])
-        user = db.get_user(user_id)
-
         if not all([merchant_id, amount, order_id, sign]):
-            await error_notify(
-                bot,
-                f"Произошла ошибка при обработке платежа. Обратитесь в поддержку: {ParametersManager.get_parameter('support_link')}",
-                f"У пользователя {user_id} произошла ошибка при обработке платежа. Username: {user.username}, сумма: {amount}, order_id: {order_id}, sign: {sign}",
-                user_id,
-            )
             logging.error(
                 f"Missing required parameters: {merchant_id}, {amount}, {order_id}, {sign}"
             )
             return jsonify({"error": "Missing required parameters"}), 400
 
         if not freekassa.check_payment_signature(merchant_id, amount, order_id, sign):
-            await error_notify(
-                bot,
-                f"Произошла ошибка при обработке платежа. Обратитесь в поддержку: {ParametersManager.get_parameter('support_link')}",
-                f"У пользователя {user_id} произошла ошибка при обработке платежа. Username: {user.username}, сумма: {amount}, order_id: {order_id}, sign: {sign}",
-                user_id,
-            )
             logging.error(f"Invalid signature: {sign}")
             return jsonify({"error": "Invalid signature"}), 400
 
-        await add_balance_with_notification(user_id, float(amount), bot)
+        # Проверяем тип платежа по order_id
+        if order_id.startswith("tariff_"):
+            # Платеж за тариф
+            _, user_id, tariff_id, _ = order_id.split("_")
+            user_id = int(user_id)
+            tariff_id = int(tariff_id)
+
+            # Активируем тариф для пользователя
+            user_tariff = db.assign_tariff_to_user(user_id, tariff_id)
+            if not user_tariff:
+                await error_notify(
+                    bot,
+                    f"Произошла ошибка при активации тарифа. Обратитесь в поддержку: {ParametersManager.get_parameter('support_link')}",
+                    f"У пользователя {user_id} произошла ошибка при активации тарифа {tariff_id}",
+                    user_id,
+                )
+                return jsonify({"error": "Failed to activate tariff"}), 500
+
+            # Отправляем уведомление пользователю
+            tariff = db.get_tariff_plan(tariff_id)
+            current_tariff = db.get_user_tariff(user_id)
+            if current_tariff and current_tariff.tariff_plan_id != tariff_id:
+                current_tariff_plan = db.get_tariff_plan(current_tariff.tariff_plan_id)
+                await bot.send_message(
+                    user_id,
+                    f"✅ Тариф {tariff.name} успешно активирован!\n"
+                    f"Предыдущий тариф {current_tariff_plan.name} был заменен.\n"
+                    f"Новый тариф действует до: {user_tariff.end_date.strftime('%d.%m.%Y')}",
+                )
+            else:
+                await bot.send_message(
+                    user_id,
+                    f"✅ Тариф {tariff.name} успешно активирован!\n"
+                    f"Действует до: {user_tariff.end_date.strftime('%d.%m.%Y')}",
+                )
+
+            # Уведомляем администраторов
+            await error_notify(
+                bot,
+                f"💰 Покупка тарифа!\n\n"
+                f"Пользователь: {user_id}\n"
+                f"Тариф: {tariff.name}\n"
+                f"Сумма: {amount}₽\n"
+                f"Действует до: {user_tariff.end_date.strftime('%d.%m.%Y')}",
+                f"Пользователь {user_id} купил тариф {tariff.name}",
+                user_id,
+            )
+        else:
+            # Обычное пополнение баланса
+            user_id = int(order_id.split("_")[0])
+            await add_balance_with_notification(user_id, float(amount), bot)
 
         return "YES", 200
 
     except Exception as e:
         logging.error(f"Ошибка при обработке уведомления о платеже: {e}")
-
         return jsonify({"error": str(e)}), 500
 
 
