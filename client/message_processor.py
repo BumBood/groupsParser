@@ -253,9 +253,9 @@ class MessageProcessor:
                         first_pos : first_pos + len(first_keyword)
                     ]
 
-                    # Определяем конец фрагмента (ключевое слово + 30 символов после него)
+                    # Определяем конец фрагмента (ключевое слово + 184 символов после него)
                     end_pos = min(
-                        first_pos + len(first_keyword) + 30, len(message_text)
+                        first_pos + len(first_keyword) + 184, len(message_text)
                     )
 
                     # Формируем фрагмент текста
@@ -265,9 +265,9 @@ class MessageProcessor:
                     # Создаем выделенный фрагмент текста для отображения
                     keyword_text_snippet = f"{prefix}<code>{original_keyword}{message_text[first_pos + len(first_keyword):end_pos]}</code>{suffix}"
 
-        # Если ключевые слова не найдены, но есть текст, берем первые 30 символов
+        # Если ключевые слова не найдены, но есть текст, берем первые 184 символов
         if not keyword_text_snippet and message_text:
-            end_pos = min(30, len(message_text))
+            end_pos = min(184, len(message_text))
             suffix = "..." if end_pos < len(message_text) else ""
             keyword_text_snippet = f"<code>{message_text[:end_pos]}</code>{suffix}"
 
