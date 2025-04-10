@@ -14,8 +14,8 @@ router = Router(name="admin_statistics")
 db = Database()
 
 
-@router.callback_query(F.data == "view_codes")
-async def view_codes(callback: types.CallbackQuery):
+@router.callback_query(F.data == "viewcodes")
+async def viewcodes(callback: types.CallbackQuery):
     if not db.get_user(callback.from_user.id).is_admin:
         return
 
@@ -130,7 +130,7 @@ async def show_code_info(callback: types.CallbackQuery):
         )
 
     keyboard.append(
-        [types.InlineKeyboardButton(text="◀️ К источникам", callback_data="view_codes")]
+        [types.InlineKeyboardButton(text="◀️ К источникам", callback_data="viewcodes")]
     )
 
     await callback.message.edit_text(
@@ -150,7 +150,7 @@ async def create_ref_link(callback: types.CallbackQuery, state):
         "📝 Введите метку источника (например: vk_com, telegram_ads):",
         reply_markup=types.InlineKeyboardMarkup(
             inline_keyboard=[
-                [types.InlineKeyboardButton(text="◀️ Назад", callback_data="view_codes")]
+                [types.InlineKeyboardButton(text="◀️ Назад", callback_data="viewcodes")]
             ]
         ),
     )
@@ -187,7 +187,7 @@ async def process_ref_code(message: types.Message, state):
             inline_keyboard=[
                 [
                     types.InlineKeyboardButton(
-                        text="📊 К источникам", callback_data="view_codes"
+                        text="📊 К источникам", callback_data="viewcodes"
                     )
                 ]
             ]
@@ -205,7 +205,7 @@ async def delete_ref_link(callback: types.CallbackQuery):
 
     if db.delete_referral_link(code):
         await callback.answer("✅ Метка успешно удалена")
-        await view_codes(callback)
+        await viewcodes(callback)
     else:
         await callback.answer("❌ Не удалось удалить метку")
 

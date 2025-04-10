@@ -31,7 +31,7 @@ async def admin_menu_base(message: types.Message, user_id: int):
                 # Статистика и отчеты
                 [
                     types.InlineKeyboardButton(
-                        text="📊 Источники", callback_data="view_codes"
+                        text="📊 Источники", callback_data="viewcodes"
                     ),
                     types.InlineKeyboardButton(
                         text="💸 История пополнений", callback_data="export_payments"
