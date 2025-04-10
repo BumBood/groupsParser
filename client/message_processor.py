@@ -293,7 +293,7 @@ class MessageProcessor:
         if sender_id:
             # Создаем ссылку на пользователя, используя его ID если нет username
             user_link = f"tg://user?id={int(sender_id)}"
-            formatted_message += f'Написать: ✍️ <a href="{user_link}">отправителю</a> {user_link}\n'
+            formatted_message += f'Написать: ✍️ <a href="{user_link}">отправителю</a>\n'
 
         if keyword_text_snippet:
             formatted_message += f"\nЧасть текста с ключом:\n{keyword_text_snippet}"
