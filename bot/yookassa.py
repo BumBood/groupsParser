@@ -64,6 +64,22 @@ class YooKassa:
             if not payload:
                 payload = f"payment_{uuid.uuid4().hex}"
 
+            provider_data = {
+                "receipt": {
+                    "items": [
+                    {
+                        "description": title,
+                        "quantity": "1.00",
+                        "amount": {
+                            "value": f"{amount / 100:.2f}",
+                            "currency": currency
+                        },
+                        "vat_code": 1
+                    }
+                    ]
+                }
+                }            
+            
             # Отправляем счет
             await bot.send_invoice(
                 chat_id=chat_id,
@@ -83,6 +99,7 @@ class YooKassa:
                 is_flexible=is_flexible,
                 max_tip_amount=max_tip_amount,
                 suggested_tip_amounts=suggested_tip_amounts,
+                provider_data=provider_data
             )
             return True
         except Exception as e:
