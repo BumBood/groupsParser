@@ -84,7 +84,7 @@ async def process_payment_method(
             title="Пополнение баланса",
             description=f"Пополнение баланса на сумму {amount} рублей",
             payload=payload,
-            amount=int(amount * 100),  # Конвертируем в копейки
+            amount=int(amount) * 100,  # Конвертируем в копейки
         )
 
         if not success:
@@ -130,6 +130,117 @@ async def process_payment_method(
 async def cancel_payment(callback: types.CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.message.edit_text("❌ Платеж отменен")
+
+
+# Обработчик предварительной проверки платежа YooKassa
+@router.pre_checkout_query()
+async def pre_checkout_handler(pre_checkout_query: types.PreCheckoutQuery, bot: Bot):
+    """
+    Обрабатывает предварительную проверку платежа от Telegram Payments API
+    """
+    try:
+        # Логирование информации о платеже
+        logging.info(f"Предварительная проверка платежа: {pre_checkout_query.id}")
+        logging.info(
+            f"Сумма: {pre_checkout_query.total_amount / 100} {pre_checkout_query.currency}"
+        )
+        logging.info(f"Данные платежа: {pre_checkout_query.invoice_payload}")
+
+        # Всегда подтверждаем платеж на этапе pre-checkout
+        # Основная проверка будет в successful_payment
+        await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
+    except Exception as e:
+        logging.error(f"Ошибка при предварительной проверке платежа: {e}")
+        # В случае ошибки отклоняем платеж
+        await bot.answer_pre_checkout_query(
+            pre_checkout_query.id,
+            ok=False,
+            error_message="Произошла ошибка, попробуйте позже или обратитесь в поддержку.",
+        )
+
+
+# Обработчик успешного платежа YooKassa
+@router.message(F.successful_payment)
+async def successful_payment_handler(message: types.Message, bot: Bot):
+    """
+    Обрабатывает успешный платеж от Telegram Payments API
+    """
+    try:
+        payment = message.successful_payment
+
+        # Логирование информации о платеже
+        logging.info(f"Успешный платеж: {payment.telegram_payment_charge_id}")
+        logging.info(f"Сумма: {payment.total_amount / 100} {payment.currency}")
+        logging.info(f"Данные платежа: {payment.invoice_payload}")
+
+        # Парсим данные платежа
+        payload = payment.invoice_payload
+        payment_data = payment_systems.yookassa.parse_invoice_payload(payload)
+
+        # Сумма платежа в рублях (делим на 100, т.к. в копейках)
+        amount = payment.total_amount / 100
+
+        # Обрабатываем разные типы платежей
+        if payload.startswith("deposit_"):
+            # Платеж на пополнение баланса
+            user_id = int(payload.split("_")[1])
+            await add_balance_with_notification(user_id, amount, bot)
+
+            # Информируем пользователя
+            await message.answer(
+                f"✅ Оплата успешно выполнена!\n\n" f"Ваш баланс пополнен на {amount}₽."
+            )
+
+        elif payload.startswith("tariff_"):
+            # Платеж за тариф
+            parts = payload.split("_")
+            if len(parts) >= 3:
+                user_id = int(parts[1])
+                tariff_id = int(parts[2])
+
+                # Активируем тариф для пользователя
+                user_tariff = db.assign_tariff_to_user(user_id, tariff_id)
+
+                if user_tariff:
+                    # Отправляем уведомление пользователю
+                    tariff = db.get_tariff_plan(tariff_id)
+                    current_tariff = db.get_user_tariff(user_id)
+
+                    if current_tariff and current_tariff.tariff_plan_id != tariff_id:
+                        current_tariff_plan = db.get_tariff_plan(
+                            current_tariff.tariff_plan_id
+                        )
+                        await message.answer(
+                            f"✅ Тариф {tariff.name} успешно активирован!\n"
+                            f"Предыдущий тариф {current_tariff_plan.name} был заменен.\n"
+                            f"Новый тариф действует до: {user_tariff.end_date.strftime('%d.%m.%Y')}",
+                        )
+                    else:
+                        await message.answer(
+                            f"✅ Тариф {tariff.name} успешно активирован!\n"
+                            f"Действует до: {user_tariff.end_date.strftime('%d.%m.%Y')}",
+                        )
+                else:
+                    await message.answer(
+                        f"❌ Произошла ошибка при активации тарифа. "
+                        f"Обратитесь в поддержку: {ParametersManager.get_parameter('support_link')}"
+                    )
+        else:
+            # Неизвестный тип платежа
+            logging.warning(f"Неизвестный тип платежа: {payload}")
+            await message.answer(
+                f"✅ Оплата успешно выполнена!\n\n"
+                f"Если у вас возникли вопросы, обратитесь в поддержку: "
+                f"{ParametersManager.get_parameter('support_link')}"
+            )
+
+    except Exception as e:
+        logging.error(f"Ошибка при обработке успешного платежа: {e}")
+        await message.answer(
+            f"❌ Произошла ошибка при обработке платежа. "
+            f"Обратитесь в поддержку: {ParametersManager.get_parameter('support_link')}"
+        )
 
 
 @router.callback_query(F.data.startswith("deposit_"))

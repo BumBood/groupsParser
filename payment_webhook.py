@@ -1,6 +1,6 @@
 import asyncio
 from flask import Flask, request, jsonify
-from bot.freekassa import FreeKassa
+from bot.payment_systems import PaymentSystems
 from config.parameters_manager import ParametersManager
 from db.database import Database
 import logging
@@ -20,14 +20,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-asyncio.new_event_loop()
+# Создаем новый цикл событий для асинхронных операций
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
 
-freekassa = FreeKassa(
-    shop_id=int(ParametersManager.get_parameter("shop_id")),
-    secret_word_1=str(ParametersManager.get_parameter("secret_word_1")),
-    secret_word_2=str(ParametersManager.get_parameter("secret_word_2")),
-)
+# Инициализация платежных систем
+payment_systems = PaymentSystems()
 
+# Инициализация бота
 bot = Bot(
     token=ParametersManager.get_parameter("bot_token"),
     default=DefaultBotProperties(parse_mode="HTML"),
@@ -36,6 +36,9 @@ bot = Bot(
 
 @app.route("/tracking/payment/notification", methods=["POST"])
 async def payment_notification():
+    """
+    Обработчик уведомлений о платежах от FreeKassa
+    """
     try:
         logging.info(f"Content-Type: {request.content_type}")
         logging.info(f"Form данные: {request.form}")
@@ -49,6 +52,7 @@ async def payment_notification():
             data = json.loads(json_str)
             logging.info(f"Распарсенные данные: {data}")
 
+        # Получаем необходимые данные из запроса
         merchant_id = data.get("MERCHANT_ID")
         amount = data.get("AMOUNT")
         order_id = data.get("MERCHANT_ORDER_ID")
@@ -60,7 +64,10 @@ async def payment_notification():
             )
             return jsonify({"error": "Missing required parameters"}), 400
 
-        if not freekassa.check_payment_signature(merchant_id, amount, order_id, sign):
+        # Проверяем подпись платежа
+        if not payment_systems.verify_freekassa_payment(
+            merchant_id, amount, order_id, sign
+        ):
             logging.error(f"Invalid signature: {sign}")
             return jsonify({"error": "Invalid signature"}), 400
 
@@ -103,18 +110,24 @@ async def payment_notification():
             # Уведомляем администраторов
             await error_notify(
                 bot,
-                f"💰 Покупка тарифа!\n\n"
+                f"💰 Покупка тарифа через FreeKassa!\n\n"
                 f"Пользователь: {user_id}\n"
                 f"Тариф: {tariff.name}\n"
                 f"Сумма: {amount}₽\n"
                 f"Действует до: {user_tariff.end_date.strftime('%d.%m.%Y')}",
-                f"Пользователь {user_id} купил тариф {tariff.name}",
+                f"Пользователь {user_id} купил тариф {tariff.name} через FreeKassa",
                 user_id,
             )
         else:
             # Обычное пополнение баланса
+            # Формат: <user_id>_<timestamp>
             user_id = int(order_id.split("_")[0])
             await add_balance_with_notification(user_id, float(amount), bot)
+
+            # Дополнительное логгирование
+            logging.info(
+                f"Баланс пользователя {user_id} пополнен на {amount}₽ через FreeKassa"
+            )
 
         return "YES", 200
 
@@ -124,4 +137,4 @@ async def payment_notification():
 
 
 if __name__ == "__main__":
-    app.run(host="185.178.44.180", port=6500)
+    app.run(host="0.0.0.0", port=6500)
