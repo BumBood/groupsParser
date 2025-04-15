@@ -84,7 +84,7 @@ async def process_payment_method(
             title="Пополнение баланса",
             description=f"Пополнение баланса на сумму {amount} рублей",
             payload=payload,
-            amount=int(amount) * 100,  # Конвертируем в копейки
+            amount=int(amount),
         )
 
         if not success:
@@ -142,7 +142,7 @@ async def pre_checkout_handler(pre_checkout_query: types.PreCheckoutQuery, bot: 
         # Логирование информации о платеже
         logging.info(f"Предварительная проверка платежа: {pre_checkout_query.id}")
         logging.info(
-            f"Сумма: {pre_checkout_query.total_amount / 100} {pre_checkout_query.currency}"
+            f"Сумма: {pre_checkout_query.total_amount} {pre_checkout_query.currency}"
         )
         logging.info(f"Данные платежа: {pre_checkout_query.invoice_payload}")
 
@@ -171,15 +171,13 @@ async def successful_payment_handler(message: types.Message, bot: Bot):
 
         # Логирование информации о платеже
         logging.info(f"Успешный платеж: {payment.telegram_payment_charge_id}")
-        logging.info(f"Сумма: {payment.total_amount / 100} {payment.currency}")
+        logging.info(f"Сумма: {payment.total_amount} {payment.currency}")
         logging.info(f"Данные платежа: {payment.invoice_payload}")
 
         # Парсим данные платежа
         payload = payment.invoice_payload
-        payment_data = payment_systems.yookassa.parse_invoice_payload(payload)
 
-        # Сумма платежа в рублях (делим на 100, т.к. в копейках)
-        amount = payment.total_amount / 100
+        amount = payment.total_amount
 
         # Обрабатываем разные типы платежей
         if payload.startswith("deposit_"):
