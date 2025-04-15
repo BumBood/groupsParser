@@ -79,6 +79,7 @@ class PaymentSystems:
                 payload=payload,
                 currency=currency,
                 prices=prices,
+                amount=amount_kopeks,
                 need_phone_number=True,
                 send_phone_number_to_provider=True,
             )

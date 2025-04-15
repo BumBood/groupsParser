@@ -71,7 +71,7 @@ class YooKassa:
                         "description": title,
                         "quantity": "1.00",
                         "amount": {
-                            "value": f"{amount / 100:.2f}",
+                            "value": f"{amount // 100}",
                             "currency": currency
                         },
                         "vat_code": 1
