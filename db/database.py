@@ -50,9 +50,7 @@ class Database:
     def create_zero_tariff(self) -> TariffPlan:
         """Создает нулевой тариф, если его еще нет"""
         with self.get_session() as session:
-            zero_tariff = (
-                session.query(TariffPlan).filter(TariffPlan.id == 1).first()
-            )
+            zero_tariff = session.query(TariffPlan).filter(TariffPlan.id == 1).first()
             if not zero_tariff:
                 zero_tariff = TariffPlan(
                     name="Zero",
@@ -78,15 +76,6 @@ class Database:
             if user is None:
                 user = User(user_id=user_id, referrer_code=referrer_code)
                 is_new = True
-                # Создаем нулевой тариф для нового пользователя
-                zero_tariff = self.create_zero_tariff()
-                user_tariff = UserTariff(
-                    user_id=user_id,
-                    tariff_plan_id=zero_tariff.id,
-                    end_date=datetime.now() + timedelta(days=5),  # ~100 лет
-                    is_active=True,
-                )
-                session.add(user_tariff)
             if user.username is None:
                 user.username = username
             if user.full_name is None:
@@ -613,9 +602,7 @@ class Database:
 
             # Получаем количество проектов пользователя
             projects_count = (
-                session.query(Project)
-                .filter(Project.user_id == user_id)
-                .count()
+                session.query(Project).filter(Project.user_id == user_id).count()
             )
 
             # Получаем количество чатов во всех проектах пользователя
@@ -625,9 +612,7 @@ class Database:
             ):
                 chats_count += (
                     session.query(ProjectChat)
-                    .filter(
-                        ProjectChat.project_id == project.id
-                    )
+                    .filter(ProjectChat.project_id == project.id)
                     .count()
                 )
 

@@ -16,10 +16,13 @@ from db.database import Database
 from bot.freekassa import FreeKassa
 from config.parameters_manager import ParametersManager
 from bot.utils.funcs import error_notify
+from bot.payment_systems import PaymentSystems
 
 router = Router(name="tariffs")
 db = Database()
+payment_systems = PaymentSystems()
 
+# Для обратной совместимости
 freekassa = FreeKassa(
     shop_id=int(ParametersManager.get_parameter("shop_id")),
     secret_word_1=str(ParametersManager.get_parameter("secret_word_1")),
@@ -30,6 +33,7 @@ freekassa = FreeKassa(
 class TariffPurchaseStates(StatesGroup):
     waiting_for_tariff = State()
     waiting_for_payment = State()
+    waiting_for_payment_method = State()  # Новое состояние для выбора способа оплаты
 
 
 @router.callback_query(F.data == "buy_tariff")
@@ -113,18 +117,33 @@ async def select_tariff(callback: CallbackQuery, state: FSMContext):
         )
         return
 
-    # Создаем платеж через FreeKassa
-    order_id = f"tariff_{callback.from_user.id}_{tariff_id}_{int(time.time())}"
+    # Сохраняем данные о тарифе
     amount = tariff.price / 100  # Конвертируем копейки в рубли
+    await state.update_data(tariff_id=tariff_id, amount=amount, tariff_name=tariff.name)
 
-    payment = freekassa.generate_payment_url(
-        amount=amount,
-        order_id=order_id,
+    # Показываем выбор способа оплаты
+    await callback.message.edit_text(
+        f"🎯 Тариф: {tariff.name}\n"
+        f"💰 Цена: {amount}₽/месяц\n\n"
+        "Выберите способ оплаты:",
+        reply_markup=payment_systems.get_payment_methods_keyboard(),
     )
 
-    if not payment:
+    # Устанавливаем состояние ожидания выбора способа оплаты
+    await state.set_state(TariffPurchaseStates.waiting_for_payment_method)
+
+
+@router.callback_query(TariffPurchaseStates.waiting_for_payment_method)
+async def process_payment_method(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    """Обработка выбора способа оплаты для тарифа"""
+    data = await state.get_data()
+    tariff_id = data.get("tariff_id")
+    amount = data.get("amount")
+    tariff_name = data.get("tariff_name")
+
+    if not tariff_id or not amount:
         await callback.message.edit_text(
-            "❌ Ошибка создания платежа. Попробуйте позже.",
+            "❌ Произошла ошибка. Попробуйте выбрать тариф снова.",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[
                     [InlineKeyboardButton(text="🔙 Назад", callback_data="buy_tariff")]
@@ -134,27 +153,80 @@ async def select_tariff(callback: CallbackQuery, state: FSMContext):
         await state.clear()
         return
 
-    # Показываем ссылку на оплату
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="💳 Оплатить", url=payment)],
-            [
-                InlineKeyboardButton(
-                    text="❌ Отменить", callback_data="cancel_tariff_payment"
-                )
-            ],
-        ]
-    )
+    # Формируем order_id для платежа
+    order_id = f"tariff_{callback.from_user.id}_{tariff_id}_{int(time.time())}"
 
-    await callback.message.edit_text(
-        f"💰 Платеж на сумму {amount}₽ создан\n"
-        f"ID платежа: {order_id.replace('tariff_', '')}\n\n"
-        "1. Нажмите кнопку «Оплатить»\n"
-        "2. Оплатите счет удобным способом\n"
-        "3. Тариф будет автоматически активирован\n\n"
-        f"При ошибках пишите в поддержку: {ParametersManager.get_parameter('support_link')}",
-        reply_markup=keyboard,
-    )
+    if callback.data == "payment_yookassa":
+        # Создаем платеж через ЮKassa
+        payload = f"tariff_{callback.from_user.id}_{tariff_id}"
+
+        success = await payment_systems.create_yookassa_invoice(
+            bot=bot,
+            chat_id=callback.from_user.id,
+            title=f"Тариф {tariff_name}",
+            description=f"Покупка тарифа {tariff_name} на сумму {amount} рублей",
+            payload=payload,
+            amount=int(amount * 100),  # Конвертируем в копейки
+        )
+
+        if not success:
+            await callback.message.edit_text(
+                "❌ Произошла ошибка при создании счета. Попробуйте позже.",
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [
+                            InlineKeyboardButton(
+                                text="🔙 Назад", callback_data="buy_tariff"
+                            )
+                        ]
+                    ]
+                ),
+            )
+
+    elif callback.data == "payment_freekassa":
+        # Создаем платеж через FreeKassa
+        payment_url = payment_systems.create_freekassa_payment(
+            amount=amount,
+            order_id=order_id,
+        )
+
+        if payment_url:
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="💳 Оплатить", url=payment_url)],
+                    [
+                        InlineKeyboardButton(
+                            text="❌ Отменить", callback_data="cancel_tariff_payment"
+                        )
+                    ],
+                ]
+            )
+
+            await callback.message.edit_text(
+                f"💰 Платеж на сумму {amount}₽ создан\n"
+                f"ID платежа: {order_id.replace('tariff_', '')}\n\n"
+                "1. Нажмите кнопку «Оплатить»\n"
+                "2. Оплатите счет удобным способом\n"
+                "3. Тариф будет автоматически активирован\n\n"
+                f"При ошибках пишите в поддержку: {ParametersManager.get_parameter('support_link')}",
+                reply_markup=keyboard,
+            )
+        else:
+            await callback.message.edit_text(
+                "❌ Произошла ошибка при создании платежа. Попробуйте позже.",
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [
+                            InlineKeyboardButton(
+                                text="🔙 Назад", callback_data="buy_tariff"
+                            )
+                        ]
+                    ]
+                ),
+            )
+
+    await state.clear()
+    await callback.answer()
 
 
 @router.callback_query(F.data == "cancel_tariff_payment")
@@ -188,42 +260,17 @@ async def confirm_tariff_selection(callback: CallbackQuery, state: FSMContext):
         )
         return
 
-    # Создаем платеж через FreeKassa
-    order_id = f"tariff_{callback.from_user.id}_{tariff_id}_{int(time.time())}"
+    # Сохраняем данные о тарифе
     amount = tariff.price / 100  # Конвертируем копейки в рубли
+    await state.update_data(tariff_id=tariff_id, amount=amount, tariff_name=tariff.name)
 
-    payment = freekassa.generate_payment_url(
-        amount=amount,
-        order_id=order_id,
-    )
-
-    if not payment:
-        await callback.message.edit_text(
-            "❌ Ошибка создания платежа. Попробуйте позже.",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="🔙 Назад", callback_data="buy_tariff")]
-                ]
-            ),
-        )
-        await state.clear()
-        return
-
-    # Показываем ссылку на оплату
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="💳 Оплатить", url=payment)],
-            [
-                InlineKeyboardButton(
-                    text="❌ Отменить", callback_data="cancel_tariff_payment"
-                )
-            ],
-        ]
-    )
-
+    # Показываем выбор способа оплаты
     await callback.message.edit_text(
-        f"💳 Оплата тарифа {tariff.name}\n"
-        f"Сумма к оплате: {amount}₽\n\n"
-        f"После оплаты тариф будет автоматически активирован.",
-        reply_markup=keyboard,
+        f"🎯 Тариф: {tariff.name}\n"
+        f"💰 Цена: {amount}₽/месяц\n\n"
+        "Выберите способ оплаты:",
+        reply_markup=payment_systems.get_payment_methods_keyboard(),
     )
+
+    # Устанавливаем состояние ожидания выбора способа оплаты
+    await state.set_state(TariffPurchaseStates.waiting_for_payment_method)

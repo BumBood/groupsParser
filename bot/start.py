@@ -28,10 +28,6 @@ async def start_command(message: types.Message, state: FSMContext):
     await state.clear()
     logging.info(f"Пользователь {message.from_user.id} /start")
 
-    
-
-    
-
     if args:
         # Получаем ссылку и увеличиваем счетчик кликов
         db.get_or_create_referral_link(args)
@@ -55,16 +51,6 @@ async def start_command(message: types.Message, state: FSMContext):
 
         await notify_admins(message.bot, admin_message)
 
-    # Проверяем подписку на каналы
-    is_subscribed = await check_subscription(message.bot, message.from_user.id)
-    if not is_subscribed:
-        check_keyboard = await get_subscription_keyboard(message.bot)
-        await message.answer(
-            "❌ Для использования бота необходимо подписаться на наши каналы.\n\n"
-            "Пожалуйста, подпишитесь на каналы ниже и нажмите кнопку 'Проверить подписку'.",
-            reply_markup=check_keyboard,
-        )
-        return
     keyboard = copy.deepcopy(start_keyboard)
     if user.is_admin:
         keyboard.inline_keyboard.append(
@@ -98,6 +84,14 @@ async def start_command(message: types.Message, state: FSMContext):
         reply_markup=keyboard,
         parse_mode="HTML",
     )
+
+    # Если пользователь новый и у него нет тарифа, показываем предложение подписаться на каналы
+    if is_new and not tariff_info["has_tariff"]:
+        check_keyboard = await get_subscription_keyboard(message.bot)
+        await message.answer(
+            "Чтобы получить пробную подписку, подпишитесь на эти каналы",
+            reply_markup=check_keyboard,
+        )
 
 
 @router.callback_query(F.data == "support")

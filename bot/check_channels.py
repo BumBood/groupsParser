@@ -80,13 +80,22 @@ async def check_subscription_callback(callback: types.CallbackQuery):
             "Теперь вы можете пользоваться ботом.",
             reply_markup=None,
         )
-        
+
         user = db.get_user(callback.from_user.id)
-        
-        
-            # Получаем информацию о тарифе пользователя
+
+        # Если у пользователя нет тарифа, добавляем пробную подписку
+        if not db.get_user_tariff_info(callback.from_user.id)["has_tariff"]:
+            # Добавляем пробную подписку (например, на 3 дня)
+            db.assign_tariff_to_user(
+                user_id=callback.from_user.id,
+                tariff_id=1,  # ID пробного тарифа
+                duration_days=3
+            )
+            await callback.message.answer("🎉 Вам добавлена пробная подписка на 3 дня!")
+
+        # Получаем информацию о тарифе пользователя
         tariff_info = db.get_user_tariff_info(callback.from_user.id)
-        
+
         keyboard = copy.deepcopy(start_keyboard)
         if user.is_admin:
             keyboard.inline_keyboard.append(
@@ -116,7 +125,7 @@ async def check_subscription_callback(callback: types.CallbackQuery):
             reply_markup=keyboard,
             parse_mode="HTML",
         )
-        
+
         return True
     else:
         keyboard = await get_subscription_keyboard(callback.bot)
