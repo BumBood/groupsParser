@@ -126,7 +126,7 @@ async def pre_checkout_handler(pre_checkout_query: types.PreCheckoutQuery, bot: 
 
         # Всегда подтверждаем платеж на этапе pre-checkout
         # Основная проверка будет в successful_payment
-        await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+        await pre_checkout_query.answer(ok=True)
 
     except Exception as e:
         logger.error(f"Ошибка при предварительной проверке платежа: {e}")
