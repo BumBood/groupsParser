@@ -78,7 +78,7 @@ async def process_deposit_amount(message: Message, state: FSMContext, bot: Bot):
             title=title,
             description=description,
             payload=payload,
-            amount=amount * 100,  # Конвертируем в копейки
+            amount=amount,
             photo_url="https://i.imgur.com/SBnJWog.png",  # Можно заменить на свою картинку
         )
 
@@ -115,7 +115,7 @@ async def auto_deposit(callback: CallbackQuery, bot: Bot):
             title=title,
             description=description,
             payload=payload,
-            amount=amount * 100,  # Конвертируем в копейки
+            amount=amount,
         )
 
         if not success:
@@ -154,7 +154,7 @@ async def show_available_tariffs(callback: CallbackQuery, state: FSMContext):
     builder = InlineKeyboardBuilder()
     for tariff in tariffs:
         builder.button(
-            text=f"{tariff.name} - {tariff.price/100}₽/мес",
+            text=f"{tariff.name} - {tariff.price}₽/мес",
             callback_data=f"select_tariff_{tariff.id}",
         )
     builder.button(text="🔙 Назад", callback_data="back_to_menu")
@@ -164,7 +164,7 @@ async def show_available_tariffs(callback: CallbackQuery, state: FSMContext):
     for tariff in tariffs:
         text += (
             f"📌 {tariff.name}\n"
-            f"💰 Цена: {tariff.price/100}₽/месяц\n"
+            f"💰 Цена: {tariff.price}₽/месяц\n"
             f"📊 Макс. проектов: {tariff.max_projects}\n"
             f"💬 Макс. чатов в проекте: {tariff.max_chats_per_project}\n\n"
         )
@@ -211,7 +211,7 @@ async def select_tariff(callback: CallbackQuery, state: FSMContext, bot: Bot):
         return
 
     # Создаем платеж через Юкассу
-    amount = tariff.price / 100  # Конвертируем копейки в рубли
+    amount = tariff.price
     timestamp = int(time.time())
     payload = f"tariff_{callback.from_user.id}_{tariff_id}_{timestamp}"
 
@@ -222,7 +222,7 @@ async def select_tariff(callback: CallbackQuery, state: FSMContext, bot: Bot):
         title=f"Тариф {tariff.name}",
         description=f"Покупка тарифа {tariff.name} на 30 дней",
         payload=payload,
-        amount=int(tariff.price),  # Сумма в копейках
+        amount=tariff.price,
         photo_url="https://i.imgur.com/nVDuuOD.png",  # Можно заменить на свою картинку
     )
 
@@ -274,7 +274,7 @@ async def confirm_tariff_selection(callback: CallbackQuery, bot: Bot):
         return
 
     # Создаем платеж через Юкассу
-    amount = tariff.price / 100  # Конвертируем копейки в рубли
+    amount = tariff.price
     timestamp = int(time.time())
     payload = f"tariff_{callback.from_user.id}_{tariff_id}_{timestamp}"
 
@@ -285,7 +285,7 @@ async def confirm_tariff_selection(callback: CallbackQuery, bot: Bot):
         title=f"Тариф {tariff.name}",
         description=f"Покупка тарифа {tariff.name} на 30 дней",
         payload=payload,
-        amount=int(tariff.price),  # Сумма в копейках
+        amount=tariff.price,
         photo_url="https://i.imgur.com/nVDuuOD.png",  # Можно заменить на свою картинку
     )
 

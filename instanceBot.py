@@ -9,7 +9,6 @@ from bot.projects import router as projects_router
 from bot.project_chats import router as project_chats_router
 from bot.history_parse import router as history_parse_router
 from bot.admin import router as admin_router
-from bot.balance import router as balance_router
 from bot.tariffs import router as tariffs_router
 from bot.payments import router as payments_router
 from bot.check_channels import router as check_channels_router
@@ -47,7 +46,6 @@ class InstanceTelegramBot:
         self.dp.include_router(project_chats_router)
         self.dp.include_router(history_parse_router)
         self.dp.include_router(admin_router)
-        self.dp.include_router(balance_router)
         self.dp.include_router(tariffs_router)
         self.dp.include_router(payments_router)
         self.dp.include_router(check_channels_router)
