@@ -83,6 +83,7 @@ class YooKassa:
             
             # Отправляем счет
             await bot.send_invoice(
+                    chat_id=chat_id,
                     title=title,
                     description='Пополнение баланса',
                     payload=payload,
