@@ -81,7 +81,6 @@ class PaymentSystems:
                 prices=prices,
                 need_phone_number=True,
                 send_phone_number_to_provider=True,
-                provider_data=json.dumps(provider_data)
             )
         except Exception as e:
             self.logger.error(f"Ошибка при создании счета ЮKassa: {e}")
