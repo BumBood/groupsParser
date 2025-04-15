@@ -2,7 +2,6 @@ import logging
 import asyncio
 from typing import Optional, Dict, Tuple
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta
 
 from telethon.tl.types import Message
 
@@ -71,10 +70,10 @@ class MessageProcessor:
                     self.executor, self._matches_keywords, text, keywords
                 )
                 if not matches:
-                    self.logger.debug(f"Сообщение не соответствует ключевым словам")
+                    self.logger.debug("Сообщение не соответствует ключевым словам")
                     return False
             elif not text:
-                self.logger.debug(f"Пустой текст сообщения, пропускаем")
+                self.logger.debug("Пустой текст сообщения, пропускаем")
                 return False
 
             # Проверяем активность тарифа пользователя через кэш
@@ -82,7 +81,7 @@ class MessageProcessor:
             has_active_tariff = await self._check_tariff_active(user_id)
 
             # Форматируем сообщение для отправки
-            self.logger.debug(f"Форматирование сообщения для отправки")
+            self.logger.debug("Форматирование сообщения для отправки")
 
             if has_active_tariff:
                 formatted_message = await self._format_message(message, chat, keywords)
@@ -202,12 +201,11 @@ class MessageProcessor:
         """Форматирует сообщение для отправки пользователю"""
 
         message_id = message.id
-        
+
         sender = message.sender
         sender_name = sender.first_name or "Нет имени"
         sender_username = sender.username or "Нет юзернейма"
         sender_id = sender.id
-
 
         # Форматируем текст сообщения
         message_text = message.text or message.message or ""
@@ -258,10 +256,9 @@ class MessageProcessor:
         formatted_message = (
             "🔔 Получено сообщение в чате 🤑\n\n"
             f"👤 Отправитель: {sender_name} (@{sender_username})\n\n"
-            f"🔑 Сработавшие ключи: {keywords or "Нет ключей"}\n\n"
+            f"🔑 Сработавшие ключи: {keywords or 'Нет ключей'}\n\n"
             f"🔗 <a href='https://t.me/{message.chat.username}/{message_id}'>Перейти к сообщению</a>\n"
             f"💬 <a href='tg://user?id={sender_id}'>Написать отправителю</a>\n\n"
-            
             f"📰 Сообщение: {keyword_text_snippet}\n\n"
         )
         return formatted_message
