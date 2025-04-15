@@ -223,13 +223,13 @@ async def view_sessions(callback: types.CallbackQuery, state: FSMContext):
             [
                 types.InlineKeyboardButton(
                     text="📁 History (парсинг истории)",
-                    callback_data="view_history_sessions",
+                    callback_data="view_session_history",
                 )
             ],
             [
                 types.InlineKeyboardButton(
                     text="📁 Realtime (мониторинг в реальном времени)",
-                    callback_data="view_realtime_sessions",
+                    callback_data="view_session_realtime",
                 )
             ],
             [types.InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_admin")],
@@ -241,12 +241,12 @@ async def view_sessions(callback: types.CallbackQuery, state: FSMContext):
     )
 
 
-@router.callback_query(F.data.startswith("view_"))
+@router.callback_query(F.data.startswith("view_session_"))
 async def handle_view_sessions_type(callback: types.CallbackQuery, state: FSMContext):
     if not db.get_user(callback.from_user.id).is_admin:
         return
 
-    session_type = callback.data.replace("view_", "").replace("_sessions", "")
+    session_type = callback.data.replace("view_session_", "")
     logger.info(
         f"Администратор {callback.from_user.id} запросил просмотр сессий типа {session_type}"
     )

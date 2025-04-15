@@ -200,30 +200,14 @@ class MessageProcessor:
         self, message: Message, chat: ProjectChat, keywords: Optional[str] = None
     ) -> str:
         """Форматирует сообщение для отправки пользователю"""
-        sender_username = None
-        sender_id = None
-        sender_name = "Неизвестный отправитель"
-        try:
-            if message.sender:
-                sender_info = await message.get_sender()
-                sender_name = getattr(sender_info, "first_name", "") or ""
-                last_name = getattr(sender_info, "last_name", "") or ""
-                if last_name:
-                    sender_name = f"{sender_name} {last_name}"
-                sender_username = getattr(sender_info, "username", None)
-                sender_id = getattr(sender_info, "id", None)
-        except Exception as e:
-            self.logger.warning(
-                f"Ошибка при получении информации об отправителе: {str(e)}"
-            )
 
-        # Форматируем имя отправителя
-        sender_display = sender_name
-        username_display = ""
-        if sender_username:
-            username_display = f"@{sender_username}"
-        else:
-            username_display = "(Нет юзернейма)"
+        message_id = message.id
+        
+        sender = message.sender
+        sender_name = sender.first_name or "Нет имени"
+        sender_username = sender.username or "Нет юзернейма"
+        sender_id = sender.id
+
 
         # Форматируем текст сообщения
         message_text = message.text or message.message or ""
@@ -263,41 +247,23 @@ class MessageProcessor:
                     suffix = "..." if end_pos < len(message_text) else ""
 
                     # Создаем выделенный фрагмент текста для отображения
-                    keyword_text_snippet = f"{prefix}<code>{original_keyword}{message_text[first_pos + len(first_keyword):end_pos]}</code>{suffix}"
+                    keyword_text_snippet = f"{prefix}<pre>{original_keyword}{message_text[first_pos + len(first_keyword):end_pos]}</pre>{suffix}"
 
         # Если ключевые слова не найдены, но есть текст, берем первые 184 символов
         if not keyword_text_snippet and message_text:
             end_pos = min(184, len(message_text))
             suffix = "..." if end_pos < len(message_text) else ""
-            keyword_text_snippet = f"<code>{message_text[:end_pos]}</code>{suffix}"
-
-        # Создаем ссылку на сообщение, если возможно
-        message_link = ""
-        if hasattr(message, "id") and chat.chat_id.startswith("@"):
-            chat_username = chat.chat_id.lstrip("@")
-            message_link = f"https://t.me/{chat_username}/{message.id}"
-
-        # Формируем итоговое сообщение в новом формате
-        keywords_str = ", ".join(matching_keywords) if matching_keywords else "нет"
+            keyword_text_snippet = f"<pre>{message_text[:end_pos]}</pre>{suffix}"
 
         formatted_message = (
-            f"🔔 Получено сообщение в чате 🤑\n\n"
-            f"Чат: {chat.chat_id}\n"
-            f"Автор сообщения: [{sender_display}] {username_display}\n"
-            f"Сработавшие ключи: {keywords_str}\n"
+            "🔔 Получено сообщение в чате 🤑\n\n"
+            f"👤 Отправитель: {sender_name} (@{sender_username})\n\n"
+            f"🔑 Сработавшие ключи: {keywords or "Нет ключей"}\n\n"
+            f"🔗 <a href='https://t.me/{message.chat.username}/{message_id}'>Перейти к сообщению</a>\n"
+            f"💬 <a href='tg://user?id={sender_id}'>Написать отправителю</a>\n\n"
+            
+            f"📰 Сообщение: {keyword_text_snippet}\n\n"
         )
-
-        if message_link:
-            formatted_message += f"Ссылка на: <a href='{message_link}'>сообщение</a>\n"
-
-        if sender_id:
-            # Создаем ссылку на пользователя, используя его ID если нет username
-            user_link = f"tg://user?id={int(sender_id)}"
-            formatted_message += f'Написать: ✍️ <a href="{user_link}">отправителю</a>\n'
-
-        if keyword_text_snippet:
-            formatted_message += f"\nЧасть текста с ключом:\n{keyword_text_snippet}"
-
         return formatted_message
 
     def clear_cache(self):

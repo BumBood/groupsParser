@@ -176,8 +176,9 @@ async def show_tariffs_page(callback: CallbackQuery, state: FSMContext):
         return
 
     def tariff_callback(tariff) -> tuple[str, str]:
+        status = "✅" if tariff.is_active else "❌"
         return (
-            f"ID: {tariff.id} | {tariff.name} | {tariff.price} коп.",
+            f"ID: {tariff.id} | {status} {tariff.name} | {tariff.price} коп.",
             f"edit_tariff_{tariff.id}",
         )
 
@@ -202,11 +203,18 @@ async def show_tariffs_page(callback: CallbackQuery, state: FSMContext):
     keyboard.inline_keyboard.append(
         [
             InlineKeyboardButton(
-                text="❌ Удалить тариф", callback_data="delete_tariff"
+                text="❌ Деактивировать тариф", callback_data="delete_tariff"
             ),
             InlineKeyboardButton(
-                text="✏️ Редактировать тариф", callback_data="edit_tariff"
+                text="✅ Активировать тариф", callback_data="activate_tariff"
             ),
+        ]
+    )
+    keyboard.inline_keyboard.append(
+        [
+            InlineKeyboardButton(
+                text="✏️ Редактировать тариф", callback_data="edit_tariff"
+            )
         ]
     )
 
@@ -218,7 +226,7 @@ async def delete_tariff_start(callback: CallbackQuery, state: FSMContext):
     """Начало процесса удаления тарифа"""
     await state.set_state(AdminStates.waiting_tariff_id_for_delete)
     await callback.message.edit_text(
-        "Введите ID тарифа для удаления:",
+        "Введите ID тарифа для деактивации:",
         reply_markup=InlineKeyboardBuilder()
         .button(text="🔙 Отмена", callback_data="list_tariffs")
         .as_markup(),
@@ -227,7 +235,7 @@ async def delete_tariff_start(callback: CallbackQuery, state: FSMContext):
 
 @router.message(AdminStates.waiting_tariff_id_for_delete)
 async def process_tariff_id_for_delete(message: Message, state: FSMContext):
-    """Обработка ID тарифа для удаления"""
+    """Обработка ID тарифа для деактивации"""
     try:
         tariff_id = int(message.text)
     except ValueError:
@@ -250,11 +258,11 @@ async def process_tariff_id_for_delete(message: Message, state: FSMContext):
         )
         return
 
-    # Удаляем тариф
-    success = db.delete_tariff_plan(tariff_id)
+    # Деактивируем тариф
+    success = db.update_tariff_plan(tariff_id, is_active=False)
     if not success:
         await message.answer(
-            "❌ Не удалось удалить тариф. Возможно, он используется пользователями.",
+            "❌ Не удалось деактивировать тариф.",
             reply_markup=InlineKeyboardBuilder()
             .button(text="🔙 Назад", callback_data="list_tariffs")
             .as_markup(),
@@ -264,7 +272,9 @@ async def process_tariff_id_for_delete(message: Message, state: FSMContext):
 
     await state.clear()
     await message.answer(
-        f"✅ Тариф успешно удален!\n\n" f"ID: {tariff_id}\n" f"Название: {tariff.name}",
+        f"✅ Тариф успешно деактивирован!\n\n"
+        f"ID: {tariff_id}\n"
+        f"Название: {tariff.name}",
         reply_markup=InlineKeyboardBuilder()
         .button(text="🔙 Назад", callback_data="list_tariffs")
         .as_markup(),
@@ -792,3 +802,63 @@ async def back_to_tariffs_menu(callback: CallbackQuery, state: FSMContext):
 async def ignore_callback(callback: CallbackQuery):
     """Игнорирование нажатия на неактивные кнопки пагинации"""
     await callback.answer()
+
+
+@router.callback_query(F.data == "activate_tariff")
+async def activate_tariff(callback: CallbackQuery, state: FSMContext):
+    """Активация тарифа"""
+    await state.set_state(AdminStates.waiting_tariff_id_for_activate)
+    await callback.message.edit_text(
+        "Введите ID тарифа для активации:",
+        reply_markup=InlineKeyboardBuilder()
+        .button(text="🔙 Отмена", callback_data="list_tariffs")
+        .as_markup(),
+    )
+
+
+@router.message(AdminStates.waiting_tariff_id_for_activate)
+async def process_tariff_id_for_activate(message: Message, state: FSMContext):
+    """Обработка ID тарифа для активации"""
+    try:
+        tariff_id = int(message.text)
+    except ValueError:
+        await message.answer(
+            "❌ Пожалуйста, введите корректный ID тарифа:",
+            reply_markup=InlineKeyboardBuilder()
+            .button(text="🔙 Отмена", callback_data="list_tariffs")
+            .as_markup(),
+        )
+        return
+
+    # Получаем тариф
+    tariff = db.get_tariff_plan(tariff_id)
+    if not tariff:
+        await message.answer(
+            "❌ Тариф не найден. Попробуйте еще раз:",
+            reply_markup=InlineKeyboardBuilder()
+            .button(text="🔙 Отмена", callback_data="list_tariffs")
+            .as_markup(),
+        )
+        return
+
+    # Активируем тариф
+    success = db.update_tariff_plan(tariff_id, is_active=True)
+    if not success:
+        await message.answer(
+            "❌ Не удалось активировать тариф.",
+            reply_markup=InlineKeyboardBuilder()
+            .button(text="🔙 Назад", callback_data="list_tariffs")
+            .as_markup(),
+        )
+        await state.clear()
+        return
+
+    await state.clear()
+    await message.answer(
+        f"✅ Тариф успешно активирован!\n\n"
+        f"ID: {tariff_id}\n"
+        f"Название: {tariff.name}",
+        reply_markup=InlineKeyboardBuilder()
+        .button(text="🔙 Назад", callback_data="list_tariffs")
+        .as_markup(),
+    )

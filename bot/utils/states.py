@@ -70,3 +70,17 @@ class AdminStates(StatesGroup):
     # Состояния для назначения тарифа пользователю
     waiting_user_id = State()
     waiting_tariff_id = State()
+
+    # Новые состояния для активации тарифов
+    waiting_tariff_id_for_activate = State()
+    waiting_tariff_edit_value = State()
+    waiting_user_id_for_ban = State()
+    waiting_user_id_for_unban = State()
+    waiting_user_id_for_delete = State()
+    waiting_user_id_for_restore = State()
+    waiting_user_id_for_balance = State()
+    waiting_balance_amount = State()
+    waiting_user_id_for_tariff = State()
+    waiting_tariff_id_for_user = State()
+    waiting_tariff_duration = State()
+    waiting_tariff_edit_field = State()

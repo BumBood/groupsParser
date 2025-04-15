@@ -51,7 +51,7 @@ class Database:
         """Создает нулевой тариф, если его еще нет"""
         with self.get_session() as session:
             zero_tariff = (
-                session.query(TariffPlan).filter(TariffPlan.name == "Zero").first()
+                session.query(TariffPlan).filter(TariffPlan.id == 1).first()
             )
             if not zero_tariff:
                 zero_tariff = TariffPlan(

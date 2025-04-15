@@ -6,6 +6,7 @@ from aiogram.fsm.context import FSMContext
 from bot.utils.funcs import notify_admins
 from config.parameters_manager import ParametersManager
 from db.database import Database
+from .check_channels import check_subscription, get_subscription_keyboard
 
 from .keyboards import start_keyboard
 
@@ -27,7 +28,9 @@ async def start_command(message: types.Message, state: FSMContext):
     await state.clear()
     logging.info(f"Пользователь {message.from_user.id} /start")
 
-    keyboard = copy.deepcopy(start_keyboard)
+    
+
+    
 
     if args:
         # Получаем ссылку и увеличиваем счетчик кликов
@@ -52,6 +55,17 @@ async def start_command(message: types.Message, state: FSMContext):
 
         await notify_admins(message.bot, admin_message)
 
+    # Проверяем подписку на каналы
+    is_subscribed = await check_subscription(message.bot, message.from_user.id)
+    if not is_subscribed:
+        check_keyboard = await get_subscription_keyboard(message.bot)
+        await message.answer(
+            "❌ Для использования бота необходимо подписаться на наши каналы.\n\n"
+            "Пожалуйста, подпишитесь на каналы ниже и нажмите кнопку 'Проверить подписку'.",
+            reply_markup=check_keyboard,
+        )
+        return
+    keyboard = copy.deepcopy(start_keyboard)
     if user.is_admin:
         keyboard.inline_keyboard.append(
             [
