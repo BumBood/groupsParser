@@ -1,3 +1,4 @@
+import json
 from typing import Dict, Optional, List
 import uuid
 import logging
@@ -69,9 +70,9 @@ class YooKassa:
                     "items": [
                     {
                         "description": title,
-                        "quantity": "1.00",
+                        "quantity": 1,
                         "amount": {
-                            "value": f"{amount // 100}",
+                            "value": amount // 100,
                             "currency": currency
                         },
                         "vat_code": 1
@@ -82,24 +83,15 @@ class YooKassa:
             
             # Отправляем счет
             await bot.send_invoice(
-                chat_id=chat_id,
-                title=title,
-                description=description,
-                payload=payload,
-                provider_token=self.provider_token,
-                currency=currency,
-                prices=prices,
-                photo_url=photo_url,
-                need_name=need_name,
-                need_phone_number=need_phone_number,
-                need_email=need_email,
-                need_shipping_address=need_shipping_address,
-                send_phone_number_to_provider=send_phone_number_to_provider,
-                send_email_to_provider=send_email_to_provider,
-                is_flexible=is_flexible,
-                max_tip_amount=max_tip_amount,
-                suggested_tip_amounts=suggested_tip_amounts,
-                provider_data=provider_data
+                    title=title,
+                    description='Пополнение баланса',
+                    payload=payload,
+                    provider_token=self.provider_token,
+                    currency=currency,
+                    prices=prices,
+                    need_phone_number=True,
+                    send_phone_number_to_provider=True,
+                    provider_data=json.dumps(provider_data)
             )
             return True
         except Exception as e:

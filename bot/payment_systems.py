@@ -54,21 +54,6 @@ class PaymentSystems:
                 LabeledPrice(label=title, amount=amount_kopeks)
             ]
             currency = "RUB"
-            provider_data = {
-                "receipt": {
-                    "items": [
-                    {
-                        "description": title,
-                        "quantity": "1.00",
-                        "amount": {
-                            "value": f"{amount_kopeks / 100:.2f}",
-                            "currency": currency
-                        },
-                        "vat_code": 1
-                    }
-                    ]
-                }
-                }
             
             # Конвертируем в копейки
             return await self.yookassa.create_invoice(
