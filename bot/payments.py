@@ -33,7 +33,6 @@ async def process_payment(
     description: str,
     payload: str,
     payment_method: str = "yookassa",
-    photo_url: Optional[str] = None,
 ) -> bool:
     """
     Универсальный метод для обработки платежей через разные платежные системы
@@ -62,7 +61,6 @@ async def process_payment(
                 description=description,
                 payload=payload,
                 amount=int(amount), 
-                photo_url=photo_url,
             )
             return success
 
