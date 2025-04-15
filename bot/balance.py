@@ -1,25 +1,16 @@
 import logging
+import time
 from aiogram import Bot, Router, F, types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-import time
-from bot.freekassa import FreeKassa
-from bot.payments import process_payment
+from bot.payment_systems import PaymentSystems
 from config.parameters_manager import ParametersManager
 from db.database import Database
-from bot.payment_systems import PaymentSystems
 
 
 router = Router(name="balance")
 db = Database()
 payment_systems = PaymentSystems()
-
-# Для обратной совместимости
-freekassa = FreeKassa(
-    shop_id=int(ParametersManager.get_parameter("shop_id")),
-    secret_word_1=str(ParametersManager.get_parameter("secret_word_1")),
-    secret_word_2=str(ParametersManager.get_parameter("secret_word_2")),
-)
 
 
 class DepositStates(StatesGroup):
@@ -82,7 +73,7 @@ async def process_payment_method(
         # Создаем платеж через централизованный обработчик
         payload = f"deposit_{callback.from_user.id}_{amount}"
 
-        success = await process_payment(
+        success = await payment_systems.process_payment(
             bot=bot,
             user_id=callback.from_user.id,
             amount=amount,
@@ -120,7 +111,7 @@ async def auto_deposit(callback: types.CallbackQuery, bot: Bot):
         # Используем централизованный обработчик для создания платежа
         payload = f"deposit_{callback.from_user.id}_{int(time.time())}"
 
-        success = await process_payment(
+        success = await payment_systems.process_payment(
             bot=bot,
             user_id=callback.from_user.id,
             amount=amount,
@@ -141,3 +132,78 @@ async def auto_deposit(callback: types.CallbackQuery, bot: Bot):
     except Exception as e:
         logging.error(f"Ошибка создания платежа: {e}")
         await callback.message.answer("❌ Произошла ошибка. Попробуйте позже.")
+
+
+# Обработчик предварительной проверки платежа YooKassa
+@router.pre_checkout_query()
+async def pre_checkout_handler(pre_checkout_query: types.PreCheckoutQuery, bot: Bot):
+    """
+    Обрабатывает предварительную проверку платежа от Telegram Payments API
+    """
+    try:
+        # Логирование информации о платеже
+        logging.info(f"Предварительная проверка платежа: {pre_checkout_query.id}")
+        logging.info(
+            f"Сумма: {pre_checkout_query.total_amount} {pre_checkout_query.currency}"
+        )
+        logging.info(f"Данные платежа: {pre_checkout_query.invoice_payload}")
+
+        # Всегда подтверждаем платеж на этапе pre-checkout
+        # Основная проверка будет в successful_payment
+        await pre_checkout_query.answer(ok=True)
+
+    except Exception as e:
+        logging.error(f"Ошибка при предварительной проверке платежа: {e}")
+        # В случае ошибки отклоняем платеж
+        await bot.answer_pre_checkout_query(
+            pre_checkout_query.id,
+            ok=False,
+            error_message="Произошла ошибка, попробуйте позже или обратитесь в поддержку.",
+        )
+
+
+# Обработчик успешного платежа YooKassa
+@router.message(F.successful_payment)
+async def successful_payment_handler(message: types.Message, bot: Bot):
+    """
+    Обрабатывает успешный платеж от Telegram Payments API
+    """
+    try:
+        payment = message.successful_payment
+
+        # Обрабатываем платеж через централизованную систему
+        success = await payment_systems.process_successful_payment(payment, bot)
+
+        if success:
+            # Определяем тип платежа для пользовательского сообщения
+            if payment.invoice_payload.startswith("deposit_"):
+                amount = payment.total_amount / 100  # копейки в рубли
+                await message.answer(
+                    f"✅ Оплата успешно выполнена!\n\n"
+                    f"Ваш баланс пополнен на {amount}₽."
+                )
+            elif payment.invoice_payload.startswith("tariff_"):
+                parts = payment.invoice_payload.split("_")
+                if len(parts) >= 3:
+                    tariff_id = int(parts[2])
+                    tariff = db.get_tariff_plan(tariff_id)
+                    user_tariff = db.get_user_tariff(message.from_user.id)
+
+                    if user_tariff:
+                        await message.answer(
+                            f"✅ Тариф {tariff.name} успешно активирован!\n"
+                            f"Действует до: {user_tariff.end_date.strftime('%d.%m.%Y')}",
+                        )
+        else:
+            # Если что-то пошло не так
+            await message.answer(
+                f"❌ Произошла ошибка при обработке платежа. "
+                f"Обратитесь в поддержку: {ParametersManager.get_parameter('support_link')}"
+            )
+
+    except Exception as e:
+        logging.error(f"Ошибка при обработке успешного платежа: {e}")
+        await message.answer(
+            f"❌ Произошла ошибка при обработке платежа. "
+            f"Обратитесь в поддержку: {ParametersManager.get_parameter('support_link')}"
+        )

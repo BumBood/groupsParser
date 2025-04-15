@@ -4,9 +4,6 @@ from bot.payment_systems import PaymentSystems
 from config.parameters_manager import ParametersManager
 from db.database import Database
 import logging
-from bot.utils.funcs import add_balance_with_notification, error_notify
-from aiogram import Bot
-from aiogram.client.default import DefaultBotProperties
 import json
 
 app = Flask(__name__)
@@ -27,15 +24,9 @@ asyncio.set_event_loop(loop)
 # Инициализация платежных систем
 payment_systems = PaymentSystems()
 
-# Инициализация бота
-bot = Bot(
-    token=ParametersManager.get_parameter("bot_token"),
-    default=DefaultBotProperties(parse_mode="HTML"),
-)
-
 
 @app.route("/tracking/payment/notification", methods=["POST"])
-async def payment_notification():
+def payment_notification():
     """
     Обработчик уведомлений о платежах от FreeKassa
     """
@@ -52,84 +43,17 @@ async def payment_notification():
             data = json.loads(json_str)
             logging.info(f"Распарсенные данные: {data}")
 
-        # Получаем необходимые данные из запроса
-        merchant_id = data.get("MERCHANT_ID")
-        amount = data.get("AMOUNT")
-        order_id = data.get("MERCHANT_ORDER_ID")
-        sign = data.get("SIGN")
+        # Обрабатываем платеж через централизованную систему
+        async def process_payment():
+            success = await payment_systems.process_freekassa_webhook(data)
+            return success
 
-        if not all([merchant_id, amount, order_id, sign]):
-            logging.error(
-                f"Missing required parameters: {merchant_id}, {amount}, {order_id}, {sign}"
-            )
-            return jsonify({"error": "Missing required parameters"}), 400
+        success = loop.run_until_complete(process_payment())
 
-        # Проверяем подпись платежа
-        if not payment_systems.verify_freekassa_payment(
-            merchant_id, amount, order_id, sign
-        ):
-            logging.error(f"Invalid signature: {sign}")
-            return jsonify({"error": "Invalid signature"}), 400
-
-        # Проверяем тип платежа по order_id
-        if order_id.startswith("tariff_"):
-            # Платеж за тариф
-            _, user_id, tariff_id, _ = order_id.split("_")
-            user_id = int(user_id)
-            tariff_id = int(tariff_id)
-
-            # Активируем тариф для пользователя
-            user_tariff = db.assign_tariff_to_user(user_id, tariff_id)
-            if not user_tariff:
-                await error_notify(
-                    bot,
-                    f"Произошла ошибка при активации тарифа. Обратитесь в поддержку: {ParametersManager.get_parameter('support_link')}",
-                    f"У пользователя {user_id} произошла ошибка при активации тарифа {tariff_id}",
-                    user_id,
-                )
-                return jsonify({"error": "Failed to activate tariff"}), 500
-
-            # Отправляем уведомление пользователю
-            tariff = db.get_tariff_plan(tariff_id)
-            current_tariff = db.get_user_tariff(user_id)
-            if current_tariff and current_tariff.tariff_plan_id != tariff_id:
-                current_tariff_plan = db.get_tariff_plan(current_tariff.tariff_plan_id)
-                await bot.send_message(
-                    user_id,
-                    f"✅ Тариф {tariff.name} успешно активирован!\n"
-                    f"Предыдущий тариф {current_tariff_plan.name} был заменен.\n"
-                    f"Новый тариф действует до: {user_tariff.end_date.strftime('%d.%m.%Y')}",
-                )
-            else:
-                await bot.send_message(
-                    user_id,
-                    f"✅ Тариф {tariff.name} успешно активирован!\n"
-                    f"Действует до: {user_tariff.end_date.strftime('%d.%m.%Y')}",
-                )
-
-            # Уведомляем администраторов
-            await error_notify(
-                bot,
-                f"💰 Покупка тарифа через FreeKassa!\n\n"
-                f"Пользователь: {user_id}\n"
-                f"Тариф: {tariff.name}\n"
-                f"Сумма: {amount}₽\n"
-                f"Действует до: {user_tariff.end_date.strftime('%d.%m.%Y')}",
-                f"Пользователь {user_id} купил тариф {tariff.name} через FreeKassa",
-                user_id,
-            )
+        if success:
+            return "YES", 200
         else:
-            # Обычное пополнение баланса
-            # Формат: <user_id>_<timestamp>
-            user_id = int(order_id.split("_")[0])
-            await add_balance_with_notification(user_id, float(amount), bot)
-
-            # Дополнительное логгирование
-            logging.info(
-                f"Баланс пользователя {user_id} пополнен на {amount}₽ через FreeKassa"
-            )
-
-        return "YES", 200
+            return jsonify({"error": "Failed to process payment"}), 500
 
     except Exception as e:
         logging.error(f"Ошибка при обработке уведомления о платеже: {e}")

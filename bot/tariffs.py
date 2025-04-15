@@ -11,23 +11,19 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 import time
 import logging
 import os
+from datetime import datetime, timedelta
 
 from db.database import Database
-from bot.freekassa import FreeKassa
-from config.parameters_manager import ParametersManager
-from bot.utils.funcs import error_notify
 from bot.payment_systems import PaymentSystems
+from bot.utils.funcs import error_notify
+from config.parameters_manager import ParametersManager
 
 router = Router(name="tariffs")
 db = Database()
 payment_systems = PaymentSystems()
 
-# Для обратной совместимости
-freekassa = FreeKassa(
-    shop_id=int(ParametersManager.get_parameter("shop_id")),
-    secret_word_1=str(ParametersManager.get_parameter("secret_word_1")),
-    secret_word_2=str(ParametersManager.get_parameter("secret_word_2")),
-)
+# Путь к директории с логотипами тарифов
+TARIFF_LOGOS_DIR = "client/tariff_logos"
 
 
 class TariffPurchaseStates(StatesGroup):
@@ -156,62 +152,28 @@ async def process_payment_method(callback: CallbackQuery, state: FSMContext, bot
     # Формируем order_id для платежа
     order_id = f"tariff_{callback.from_user.id}_{tariff_id}_{int(time.time())}"
 
+    # Определяем метод оплаты
+    payment_method = None
     if callback.data == "payment_yookassa":
-        # Создаем платеж через ЮKassa
+        payment_method = "yookassa"
+    elif callback.data == "payment_freekassa":
+        payment_method = "freekassa"
+
+    if payment_method:
+        # Создаем платеж через централизованный обработчик
         payload = f"tariff_{callback.from_user.id}_{tariff_id}"
 
-        success = await payment_systems.create_yookassa_invoice(
+        success = await payment_systems.process_payment(
             bot=bot,
-            chat_id=callback.from_user.id,
+            user_id=callback.from_user.id,
+            amount=float(amount),
             title=f"Тариф {tariff_name}",
             description=f"Покупка тарифа {tariff_name} на сумму {amount} рублей",
             payload=payload,
-            amount=int(amount * 100),  # Конвертируем в копейки
+            payment_method=payment_method,
         )
 
         if not success:
-            await callback.message.edit_text(
-                "❌ Произошла ошибка при создании счета. Попробуйте позже.",
-                reply_markup=InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [
-                            InlineKeyboardButton(
-                                text="🔙 Назад", callback_data="buy_tariff"
-                            )
-                        ]
-                    ]
-                ),
-            )
-
-    elif callback.data == "payment_freekassa":
-        # Создаем платеж через FreeKassa
-        payment_url = payment_systems.create_freekassa_payment(
-            amount=amount,
-            order_id=order_id,
-        )
-
-        if payment_url:
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="💳 Оплатить", url=payment_url)],
-                    [
-                        InlineKeyboardButton(
-                            text="❌ Отменить", callback_data="cancel_tariff_payment"
-                        )
-                    ],
-                ]
-            )
-
-            await callback.message.edit_text(
-                f"💰 Платеж на сумму {amount}₽ создан\n"
-                f"ID платежа: {order_id.replace('tariff_', '')}\n\n"
-                "1. Нажмите кнопку «Оплатить»\n"
-                "2. Оплатите счет удобным способом\n"
-                "3. Тариф будет автоматически активирован\n\n"
-                f"При ошибках пишите в поддержку: {ParametersManager.get_parameter('support_link')}",
-                reply_markup=keyboard,
-            )
-        else:
             await callback.message.edit_text(
                 "❌ Произошла ошибка при создании платежа. Попробуйте позже.",
                 reply_markup=InlineKeyboardMarkup(
