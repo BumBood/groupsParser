@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 import logging
 from aiogram import Bot
@@ -45,21 +46,42 @@ class PaymentSystems:
         description: str,
         payload: str,
         amount: int,
-        photo_url: Optional[str] = None,
     ) -> bool:
         """Создает счет на оплату через ЮKassa"""
         try:
+            amount_kopeks = int(amount * 100)
             prices = [
-                LabeledPrice(label=title, amount=amount * 100)
-            ]  # Конвертируем в копейки
+                LabeledPrice(label=title, amount=amount_kopeks)
+            ]
+            currency = "RUB"
+            provider_data = {
+                "receipt": {
+                    "items": [
+                    {
+                        "description": title,
+                        "quantity": "1.00",
+                        "amount": {
+                            "value": f"{amount_kopeks / 100:.2f}",
+                            "currency": currency
+                        },
+                        "vat_code": 1
+                    }
+                    ]
+                }
+                }
+            
+            # Конвертируем в копейки
             return await self.yookassa.create_invoice(
                 bot=bot,
                 chat_id=chat_id,
                 title=title,
                 description=description,
                 payload=payload,
+                currency=currency,
                 prices=prices,
-                photo_url=photo_url,
+                need_phone_number=True,
+                send_phone_number_to_provider=True,
+                provider_data=json.dumps(provider_data)
             )
         except Exception as e:
             self.logger.error(f"Ошибка при создании счета ЮKassa: {e}")
