@@ -11,7 +11,6 @@ from bot.history_parse import router as history_parse_router
 from bot.admin import router as admin_router
 from bot.balance import router as balance_router
 from bot.tariffs import router as tariffs_router
-from bot.payments import router as payments_router
 from bot.check_channels import router as check_channels_router
 from config.parameters_manager import ParametersManager
 from db.database import Database
@@ -49,7 +48,6 @@ class InstanceTelegramBot:
         self.dp.include_router(admin_router)
         self.dp.include_router(balance_router)
         self.dp.include_router(tariffs_router)
-        self.dp.include_router(payments_router)
         self.dp.include_router(check_channels_router)
         self.logger.info("Роутеры успешно подключены")
 
