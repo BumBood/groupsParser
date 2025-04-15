@@ -34,7 +34,7 @@ bot = Bot(
 )
 
 
-@app.route("tracking/payment/notification", methods=["POST"])
+@app.route("/tracking/payment/notification", methods=["POST"])
 async def payment_notification():
     try:
         logging.info(f"Content-Type: {request.content_type}")
