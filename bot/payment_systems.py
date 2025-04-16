@@ -116,8 +116,7 @@ class YooKassa:
                 provider_token=self.provider_token,
                 currency=currency,
                 prices=prices,
-                need_phone_number=True,
-                send_phone_number_to_provider=True,
+                need_email=True,
                 provider_data=json.dumps(provider_data),
             )
             return True
