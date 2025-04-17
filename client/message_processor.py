@@ -256,7 +256,7 @@ class MessageProcessor:
         formatted_message = (
             "🔔 Получено сообщение в чате 🤑\n\n"
             f"👤 Отправитель: {sender_name} (@{sender_username})\n\n"
-            f"🔑 Сработавшие ключи: {matching_keywords or 'Нет ключей'}\n\n"
+            f"🔑 Сработавшие ключи: {', '.join(matching_keywords) or 'Нет ключей'}\n\n"
             f"🔗 <a href='https://t.me/{message.chat.username}/{message_id}'>Перейти к сообщению</a>\n"
             f"💬 <a href='tg://user?id={sender_id}'>Написать отправителю</a>\n\n"
             f"📰 Сообщение: {keyword_text_snippet}\n\n"
