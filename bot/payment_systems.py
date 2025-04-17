@@ -117,6 +117,7 @@ class YooKassa:
                 currency=currency,
                 prices=prices,
                 need_email=True,
+                send_email_to_provider=True,
                 provider_data=json.dumps(provider_data),
             )
             return True
