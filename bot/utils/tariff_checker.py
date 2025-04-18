@@ -2,8 +2,9 @@ import logging
 import asyncio
 from datetime import datetime, timedelta
 from aiogram import Bot
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from db.database import Database
-from typing import Optional, List, Dict, Set
+from typing import Optional, List, Dict, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,9 @@ class TariffChecker:
         # Словарь для отслеживания отправленных уведомлений
         # user_id -> set(notification_types)
         self.notifications_sent: Dict[int, Set[str]] = {}
+        # Словарь для отслеживания времени истечения тарифов
+        # user_id -> datetime
+        self.tariff_expired_times: Dict[int, datetime] = {}
         # Интервал между проверками (30 минут)
         self.check_interval = 30 * 60
         # Интервал для сброса истории уведомлений (24 часа)
@@ -52,6 +56,7 @@ class TariffChecker:
         logger.info("Система проверки тарифов остановлена")
         # Очищаем историю уведомлений при остановке
         self.notifications_sent.clear()
+        self.tariff_expired_times.clear()
 
     async def _check_loop(self):
         """Основной цикл проверки тарифов"""
@@ -90,11 +95,28 @@ class TariffChecker:
         active_tariffs = self.db.get_all_active_user_tariffs()
         logger.info(f"Проверка {len(active_tariffs)} активных тарифов")
 
+        # Получаем неактивные тарифы для проверки тех, которые истекли 24 часа назад
+        inactive_tariffs = self.db.get_inactive_user_tariffs()
+
+        # Проверяем неактивные тарифы для отправки уведомления через 24 часа после истечения
+        for user_id, expired_time in list(self.tariff_expired_times.items()):
+            # Если прошло 24 часа с момента истечения тарифа
+            if now - expired_time >= timedelta(hours=24):
+                # Проверяем, не отправляли ли мы уже уведомление через 24 часа после истечения
+                if not self._was_notification_sent(user_id, "post_expired"):
+                    await self._send_post_expired_notification(user_id)
+                    self._mark_notification_sent(user_id, "post_expired")
+                # Удаляем из словаря, так как уже отправили
+                del self.tariff_expired_times[user_id]
+
         for tariff in active_tariffs:
             # Проверяем, не истёк ли уже тариф
             if tariff.end_date <= now:
                 # Тариф истёк, деактивируем его
                 self.db.deactivate_user_tariff(tariff.user_id)
+
+                # Запоминаем время истечения тарифа
+                self.tariff_expired_times[tariff.user_id] = now
 
                 # Проверяем, не отправляли ли мы уже уведомление об истечении
                 if not self._was_notification_sent(tariff.user_id, "expired"):
@@ -143,12 +165,24 @@ class TariffChecker:
     ):
         """Отправляет уведомление о скором истечении тарифа"""
         try:
+            keyboard = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            text="🔍  Продлить подписку",
+                            callback_data="buy_tariff",
+                        )
+                    ]
+                ]
+            )
+
             await self.bot.send_message(
                 user_id,
                 f"⚠️ <b>Внимание!</b>\n\n"
                 f"Ваш тариф истекает через {period}.\n"
-                f"Чтобы продолжить получать уведомления о ключевых словах, "
-                f"пожалуйста, продлите свой тариф.",
+                f"Не ждите!\n\n"
+                f"🔍  Продли подписку прямо сейчас чтобы получать уведомления о новых лидах (заявках) по вашим ключевым словам.",
+                reply_markup=keyboard,
             )
             logger.info(
                 f"Отправлено уведомление о скором истечении тарифа (через {period}) пользователю {user_id}"
@@ -173,6 +207,35 @@ class TariffChecker:
         except Exception as e:
             logger.error(
                 f"Ошибка при отправке уведомления об истечении тарифа пользователю {user_id}: {str(e)}"
+            )
+
+    async def _send_post_expired_notification(self, user_id: int):
+        """Отправляет уведомление через 24 часа после истечения тарифа"""
+        try:
+            keyboard = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            text="Продлить тариф",
+                            callback_data="buy_tariff",
+                        )
+                    ]
+                ]
+            )
+
+            await self.bot.send_message(
+                user_id,
+                "Вы пропускаете сотни заявок в день, и мне очень грустно от этого 😢\n\n"
+                "Десятки заказчиков ежедневно публикуют объявления по апшим ключевым словам 🙌\n\n"
+                "Получите к ним доступ присоединившись к нашему сервису прямо сейчас 🙂",
+                reply_markup=keyboard,
+            )
+            logger.info(
+                f"Отправлено уведомление через 24 часа после истечения тарифа пользователю {user_id}"
+            )
+        except Exception as e:
+            logger.error(
+                f"Ошибка при отправке уведомления через 24 часа после истечения тарифа пользователю {user_id}: {str(e)}"
             )
 
     @staticmethod
